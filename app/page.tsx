@@ -1,113 +1,101 @@
-"use client";
-
-export const dynamic = 'force-dynamic';
-
-import { useState, useEffect, useRef } from "react";
-import { getGanador } from "@/src/lib/queries";
-import NumberDisplay from "@/src/components/sorteo/NumberDisplay";
-import Button from "@/src/components/ui/Button";
-import Confetti from "react-confetti";
-import { useWindowSize } from "react-use";
-
 export default function Home() {
-  const [numero, setNumero] = useState<number | null>(null);
-  const [animando, setAnimando] = useState(false);
-  const [showConfetti, setShowConfetti] = useState(false);
-  const intervalRef = useRef<number | null>(null);
-  const timeoutRef = useRef<number | null>(null);
-  const { width, height } = useWindowSize();
-
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) window.clearInterval(intervalRef.current);
-      if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
-    };
-  }, []);
-
-  const iniciarSorteo = async () => {
-    setAnimando(true);
-    setShowConfetti(false);
-
-    intervalRef.current = window.setInterval(() => {
-      setNumero(Math.floor(Math.random() * 999));
-    }, 80);
-
-    timeoutRef.current = window.setTimeout(async () => {
-      if (intervalRef.current) window.clearInterval(intervalRef.current);
-
-      const ganador = await getGanador();
-
-      if (ganador) {
-        setNumero(ganador.ticket_bloqueado);
-        setShowConfetti(true);
-      }
-
-      setAnimando(false);
-    }, 4000);
-  };
-
   return (
-    <main className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-900 text-white relative overflow-hidden">
-      {showConfetti && (
-        <Confetti
-          width={width}
-          height={height}
-          recycle={false}
-          numberOfPieces={500}
-          colors={['#FFD700', '#FF0000', '#FFA500', '#FFFF00', '#FF69B4']}
-        />
-      )}
+    <main className="min-h-screen bg-[#ff2680] text-white">
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-40 bg-white/10 blur-3xl" />
+        <div className="absolute inset-x-0 bottom-0 h-40 bg-white/5 blur-3xl" />
 
-      <div className="absolute inset-0 opacity-20">
-        <div className="w-full h-full bg-red-500/5"></div>
-      </div>
+        <nav className="relative z-10 max-w-7xl mx-auto px-6 py-6 flex items-center justify-between gap-6">
+          <div className="text-xl font-black tracking-tight uppercase">Supersorteo</div>
+          <div className="flex items-center gap-3">
+            <button className="rounded-full border border-white/30 px-4 py-2 text-sm text-white/90 hover:bg-white/10 transition">Ingresar</button>
+            <button className="rounded-full bg-white text-pink-600 px-5 py-2 text-sm font-semibold shadow-lg shadow-pink-500/20 hover:bg-gray-100 transition">Crear cuenta</button>
+          </div>
+        </nav>
 
-      <header className="relative z-10 p-6 text-center">
-        <h1 className="text-6xl font-bold bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500 bg-clip-text text-transparent mb-2">
-          🎰 SORTEO PREMIUM
-        </h1>
-        <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-          ¡Participa en nuestro sorteo exclusivo! Números aleatorios con animación profesional.
-        </p>
-      </header>
+        <section className="relative z-10 max-w-6xl mx-auto px-6 py-20 sm:py-28">
+          <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] items-center">
+            <div className="space-y-8">
+              <div className="inline-flex items-center gap-3 rounded-full bg-white/10 px-4 py-2 text-sm uppercase tracking-[0.3em] text-white/90 shadow-lg shadow-pink-500/20">
+                Nueva experiencia
+              </div>
 
-      <div className="relative z-10 flex flex-col items-center justify-center flex-1 px-6 py-12">
-        <div className="bg-black/50 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-red-500/20 max-w-md w-full">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-semibold text-yellow-400 mb-4">SORTEO EN VIVO</h2>
-            <div className="bg-gradient-to-r from-red-600 to-yellow-600 p-1 rounded-2xl">
-              <NumberDisplay numero={numero} />
+              <div className="space-y-5">
+                <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight">Supersorteo</h1>
+                <p className="max-w-xl text-lg text-white/85 leading-8">
+                  Crea sorteos rápidos y visuales para tu comunidad. Está en pañales, pero ya puedes lucir un diseño moderno y potente.
+                </p>
+              </div>
+
+              <div className="space-y-5">
+                <div className="rounded-full bg-white/15 border border-white/20 shadow-[0_35px_120px_-80px_rgba(255,255,255,0.8)]">
+                  <div className="flex flex-col sm:flex-row items-center gap-4 p-4 sm:p-5">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-xl">📷</span>
+                    <input
+                      type="text"
+                      placeholder="Ingresa @username o URL del post"
+                      className="flex-1 min-w-0 rounded-full border border-white/20 bg-white/10 px-5 py-4 text-white placeholder:text-white/60 focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/20"
+                    />
+                    <button className="rounded-full bg-white text-pink-600 px-7 py-4 text-base font-semibold shadow-lg shadow-pink-500/20 hover:bg-gray-100 transition">Comenzar</button>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-center gap-4 text-white/90 text-sm">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">Instagram</span>
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">Facebook</span>
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">TikTok</span>
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">YouTube</span>
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2">Twitter</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-[2rem] border border-white/10 bg-white/10 p-8 shadow-2xl shadow-pink-800/40 backdrop-blur-xl">
+              <div className="space-y-4">
+                <div className="inline-flex rounded-full bg-white/10 px-4 py-2 text-xs uppercase tracking-[0.3em] text-white/80">Preview</div>
+                <div className="rounded-[1.5rem] border border-white/15 bg-white/10 p-6 text-center">
+                  <div className="mb-5 rounded-3xl bg-white/10 p-6 text-left">
+                    <p className="text-sm uppercase tracking-[0.2em] text-white/70">Demostración</p>
+                    <p className="mt-4 text-4xl font-semibold text-white"># 0 8 4 2 1</p>
+                    <p className="mt-2 text-sm text-white/65">Ganador en proceso</p>
+                  </div>
+                  <div className="rounded-3xl bg-white/10 p-5 text-left">
+                    <p className="text-sm text-white/70">Próximo paso</p>
+                    <p className="mt-3 text-lg font-semibold text-white">Personaliza tu sorteo y muestra resultados como un profesional.</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-
-          <div className="text-center">
-            <Button
-              onClick={iniciarSorteo}
-              disabled={animando}
-              className="w-full py-4 text-lg font-bold bg-gradient-to-r from-red-600 to-yellow-600 hover:from-red-700 hover:to-yellow-700 transform hover:scale-105 transition-all duration-200 shadow-lg"
-            >
-              {animando ? 'SORTEANDO...' : '🎯 INICIAR SORTEO'}
-            </Button>
-            {animando && (
-              <p className="mt-4 text-sm text-gray-400 animate-pulse">
-                Generando números aleatorios...
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-8 text-center max-w-md">
-          <p className="text-sm text-gray-400">
-            Participantes registrados: <span className="text-yellow-400 font-semibold">Ver en panel admin</span>
-          </p>
-        </div>
+        </section>
       </div>
 
-      <footer className="relative z-10 p-6 text-center border-t border-red-500/20">
-        <p className="text-sm text-gray-400">
-          © 2026 Sorteo Premium - Todos los derechos reservados
-        </p>
-      </footer>
+      <section className="bg-white text-slate-900 pb-20">
+        <div className="max-w-6xl mx-auto px-6 py-16">
+          <div className="max-w-3xl">
+            <p className="text-sm uppercase tracking-[0.3em] text-pink-600">Apps de sorteos más usadas</p>
+            <h2 className="mt-4 text-4xl font-bold tracking-tight">Estilo profesional para tu próximo sorteo</h2>
+            <p className="mt-4 text-lg text-slate-600 leading-8">
+              Crea una presencia visual impecable sin necesidad de funcionalidad completa aún. Este diseño ya tiene el carapacho que necesitas.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/40">
+              <h3 className="text-xl font-semibold text-slate-900">Diseño rápido</h3>
+              <p className="mt-3 text-slate-600">Hero llamativo con CTA y caja de entrada clara.</p>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/40">
+              <h3 className="text-xl font-semibold text-slate-900">Responsive</h3>
+              <p className="mt-3 text-slate-600">Funciona bien en escritorio y dispositivos móviles.</p>
+            </div>
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/40">
+              <h3 className="text-xl font-semibold text-slate-900">Tono premium</h3>
+              <p className="mt-3 text-slate-600">Colores vibrantes y componentes elegantes.</p>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }

@@ -7,8 +7,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Sorteo",
-  description: "Aplicación de sorteo con Supabase",
+  title: "Supersorteo",
+  description: "Landing page de Supersorteo con diseño moderno para sorteos.",
 };
 
 export default function RootLayout({
