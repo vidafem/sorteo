@@ -351,21 +351,27 @@ export default function Home() {
             <Card className="relative overflow-hidden rounded-[2.2rem] border border-pink-100 bg-gradient-to-br from-white via-[#fff7fb] to-[#ffe7f3] p-8">
               <div className="grid gap-4 sm:grid-cols-3">
                 {[
-                  'from-pink-500 to-rose-400',
-                  'from-purple-500 to-fuchsia-400',
-                  'from-orange-400 to-pink-400',
-                  'from-emerald-400 to-lime-400',
-                  'from-sky-400 to-cyan-400',
-                  'from-fuchsia-500 to-pink-400',
-                  'from-amber-400 to-orange-400',
-                  'from-slate-900 to-slate-700',
-                  'from-rose-300 to-pink-300',
-                ].map((gradient, index) => (
-                  <div key={`${gradient}-${index}`} className={`aspect-[0.95] rounded-[1.6rem] bg-gradient-to-br ${gradient} p-4 text-white shadow-[0_24px_60px_-36px_rgba(15,23,42,0.55)]`}>
-                    <div className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">
-                      Card {index + 1}
+                  { gradient: 'from-pink-500 to-rose-400', icon: '👩🏽', name: 'Ana P.' },
+                  { gradient: 'from-purple-500 to-fuchsia-400', icon: '🏆', name: 'Premio' },
+                  { gradient: 'from-orange-400 to-pink-400', icon: '👨🏻', name: 'Carlos' },
+                  { gradient: 'from-emerald-400 to-lime-400', icon: '🎟️', name: 'Ticket' },
+                  { gradient: 'from-sky-400 to-cyan-400', icon: '🎁', name: 'Sorteo' },
+                  { gradient: 'from-fuchsia-500 to-pink-400', icon: '👩🏼‍🦰', name: 'Lucia' },
+                  { gradient: 'from-amber-400 to-orange-400', icon: '👨🏾', name: 'Pedro' },
+                  { gradient: 'from-slate-900 to-slate-700', icon: '🎰', name: 'Ruleta' },
+                  { gradient: 'from-rose-300 to-pink-300', icon: '👩🏻', name: 'Maria' },
+                ].map((item, index) => (
+                  <motion.div
+                    key={index}
+                    animate={{ y: [0, -8, 0] }}
+                    transition={{ duration: 3, repeat: Infinity, delay: index * 0.2, ease: "easeInOut" }}
+                    className={`flex aspect-[0.95] flex-col items-center justify-center rounded-[1.6rem] bg-gradient-to-br ${item.gradient} p-4 text-white shadow-[0_24px_60px_-36px_rgba(15,23,42,0.55)]`}
+                  >
+                    <span className="mb-2 text-4xl drop-shadow-md">{item.icon}</span>
+                    <div className="rounded-full bg-white/20 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] backdrop-blur-sm">
+                      {item.name}
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </Card>
@@ -426,13 +432,32 @@ export default function Home() {
         <section className="mx-auto grid max-w-7xl gap-10 px-6 py-8 lg:grid-cols-2 lg:items-center">
           <div>
             <Card className="overflow-hidden rounded-[2.2rem] border border-pink-100 bg-gradient-to-br from-[#fff7fb] via-white to-[#fff0f8] p-8">
-              <div className="flex gap-4">
-                {['#ff8ab8', '#8bd64c', '#6ecbf5'].map((color, index) => (
-                  <div key={color} className="h-40 flex-1 rounded-[1.5rem] shadow-[inset_0_1px_1px_rgba(255,255,255,0.7)]" style={{ background: `linear-gradient(135deg, ${color}, #ffffff)` }}>
-                    <div className="p-4 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
-                      Certificado {index + 1}
+              <div className="flex flex-col gap-4 sm:flex-row">
+                {[
+                  { color: '#ff8ab8', icon: '🥇', title: '1er Lugar' },
+                  { color: '#8bd64c', icon: '🎖️', title: 'Verificado' },
+                  { color: '#6ecbf5', icon: '🏆', title: 'Seguro' }
+                ].map((cert) => (
+                  <motion.div
+                    key={cert.color}
+                    whileHover={{ scale: 1.05, rotate: -2 }}
+                    className="relative flex h-40 flex-1 flex-col justify-between overflow-hidden rounded-[1.5rem] p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.7),0_10px_20px_-10px_rgba(0,0,0,0.1)]"
+                    style={{ background: `linear-gradient(135deg, ${cert.color}30, #ffffff)` }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-3xl drop-shadow-sm">{cert.icon}</span>
+                      <div className="h-6 w-6 rounded-full border-2 border-white bg-slate-100 shadow-sm" />
                     </div>
-                  </div>
+                    <div>
+                      <div className="mb-2 h-2 w-12 rounded-full bg-slate-200" />
+                      <div className="h-1.5 w-full rounded-full bg-slate-100" />
+                      <div className="mt-1 h-1.5 w-2/3 rounded-full bg-slate-100" />
+                      <div className="mt-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-500">
+                        {cert.title}
+                      </div>
+                    </div>
+                    <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-20 blur-2xl" style={{ backgroundColor: cert.color }} />
+                  </motion.div>
                 ))}
               </div>
             </Card>
