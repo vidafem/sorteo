@@ -98,6 +98,4 @@ export default function FormConcursante({ onConcursanteAdded }: FormConcursanteP
       )}
     </div>
   );
-    </div>
-  );
 }

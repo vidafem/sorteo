@@ -48,7 +48,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-900 text-white relative overflow-hidden">
-      {/* Confeti */}
       {showConfetti && (
         <Confetti
           width={width}
@@ -59,10 +58,10 @@ export default function Home() {
         />
       )}
 
-      {/* Elementos decorativos de fondo */}
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ff0000" fill-opacity="0.05"%3E%3Ccircle cx="30" cy="30" r="4"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-20"></div>
+      <div className="absolute inset-0 opacity-20">
+        <div className="w-full h-full bg-red-500/5"></div>
+      </div>
 
-      {/* Header */}
       <header className="relative z-10 p-6 text-center">
         <h1 className="text-6xl font-bold bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500 bg-clip-text text-transparent mb-2">
           🎰 SORTEO PREMIUM
@@ -72,7 +71,6 @@ export default function Home() {
         </p>
       </header>
 
-      {/* Contenido principal */}
       <div className="relative z-10 flex flex-col items-center justify-center flex-1 px-6 py-12">
         <div className="bg-black/50 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-red-500/20 max-w-md w-full">
           <div className="text-center mb-8">
@@ -98,7 +96,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Información adicional */}
         <div className="mt-8 text-center max-w-md">
           <p className="text-sm text-gray-400">
             Participantes registrados: <span className="text-yellow-400 font-semibold">Ver en panel admin</span>
@@ -106,7 +103,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Footer */}
       <footer className="relative z-10 p-6 text-center border-t border-red-500/20">
         <p className="text-sm text-gray-400">
           © 2026 Sorteo Premium - Todos los derechos reservados
