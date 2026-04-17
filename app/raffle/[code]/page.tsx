@@ -12,31 +12,10 @@ import {
   eliminateParticipantFromRaffle,
   getRaffleByCode,
   selectWinnerForRaffle,
+  joinRaffle,
   type RaffleDetail,
   type RaffleParticipant,
 } from '@/lib/queries';
-
-const getCountdownText = (drawAt: string | null) => {
-  if (!drawAt) {
-    return 'Sin fecha definida';
-  }
-
-  const difference = new Date(drawAt).getTime() - Date.now();
-  if (difference <= 0) {
-    return 'Sorteo finalizado';
-  }
-
-  const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
-  const minutes = Math.floor((difference / (1000 * 60)) % 60);
-  const seconds = Math.floor((difference / 1000) % 60);
-
-  if (days > 0) {
-    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
-  }
-
-  return `${hours}h ${minutes}m ${seconds}s`;
-};
 
 const formatDrawDate = (drawAt: string | null) => {
   if (!drawAt) {
@@ -76,6 +55,13 @@ export default function RafflePage() {
   const [currentAnimatedNameIndex, setCurrentAnimatedNameIndex] = useState(0);
   const [animationStyle, setAnimationStyle] = useState<'roulette' | 'cards' | 'number'>('cards');
   const [rouletteParticipant, setRouletteParticipant] = useState<RaffleParticipant | null>(null);
+
+  // Estado para el formulario manual
+  const [addName, setAddName] = useState('');
+  const [addNumbers, setAddNumbers] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState('');
+  const [addMessage, setAddMessage] = useState('');
 
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -179,7 +165,27 @@ export default function RafflePage() {
     };
   }, [raffle?.id, loadRaffle]);
 
-  const countdownText = useMemo(() => getCountdownText(raffle?.drawAt ?? null), [raffle?.drawAt]);
+  const timeDifference = useMemo(() => {
+    if (!raffle?.drawAt) return null;
+    return new Date(raffle.drawAt).getTime() - Date.now();
+  }, [raffle?.drawAt, clockTick]);
+
+  const isCountdownActive = timeDifference !== null && timeDifference > 0;
+
+  const formatCountdown = useCallback((diff: number) => {
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+    const minutes = Math.floor((diff / (1000 * 60)) % 60);
+    const seconds = Math.floor((diff / 1000) % 60);
+
+    if (days > 0) {
+      return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    }
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }, []);
+
+  const countdownText = isCountdownActive ? formatCountdown(timeDifference) : (raffle?.drawAt ? 'Sorteo finalizado' : 'Sin fecha definida');
+
   const actualWinner = useMemo(
     () => raffle?.participants.find((participant) => participant.status === 'winner') ?? null,
     [raffle],
@@ -259,7 +265,7 @@ export default function RafflePage() {
   const canPickWinner = Boolean(raffle?.staffAccess?.canManageRaffle || raffle?.staffAccess?.canPickWinner);
   const canEliminate = Boolean(raffle?.staffAccess?.canManageRaffle || raffle?.staffAccess?.canEliminateParticipants);
 
-  const handleSelectWinner = async (participantId: string) => {
+  const handleSelectWinner = useCallback(async (participantId: string) => {
     if (!raffle) {
       return;
     }
@@ -273,7 +279,20 @@ export default function RafflePage() {
     } finally {
       setActionLoadingId('');
     }
-  };
+  }, [raffle, loadRaffle]);
+
+  const autoTriggered = useRef(false);
+
+  // Auto-disparar el sorteo cuando el tiempo llega a cero (solo el admin)
+  useEffect(() => {
+    if (timeDifference !== null && timeDifference <= 0 && !autoTriggered.current) {
+      autoTriggered.current = true;
+      if (canPickWinner && !actualWinner && activeParticipants.length > 0 && !actionLoadingId) {
+        const randomIndex = Math.floor(Math.random() * activeParticipants.length);
+        void handleSelectWinner(activeParticipants[randomIndex].id);
+      }
+    }
+  }, [timeDifference, canPickWinner, actualWinner, activeParticipants, actionLoadingId, handleSelectWinner]);
 
   const handleEliminateParticipant = async (participantId: string) => {
     if (!raffle) {
@@ -288,6 +307,50 @@ export default function RafflePage() {
       console.error('No se pudo eliminar al participante:', error);
     } finally {
       setActionLoadingId('');
+    }
+  };
+
+  // Función para agregar números manualmente separados por coma
+  const handleAddParticipant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!raffle) return;
+    setAddError('');
+    setAddMessage('');
+
+    if (!addName.trim() || !addNumbers.trim()) {
+      setAddError('Completa el nombre y los numeros.');
+      return;
+    }
+
+    const numbersToJoin = addNumbers
+      .split(',')
+      .map((n) => parseInt(n.trim(), 10))
+      .filter((n) => !isNaN(n) && n > 0);
+
+    if (numbersToJoin.length === 0) {
+      setAddError('Ingresa al menos un numero valido.');
+      return;
+    }
+
+    const duplicates = numbersToJoin.filter((n) => occupiedNumbers.includes(n));
+    if (duplicates.length > 0) {
+      setAddError(`Los numeros ${duplicates.join(', ')} ya estan ocupados.`);
+      return;
+    }
+
+    setAdding(true);
+    try {
+      for (const num of numbersToJoin) {
+        await joinRaffle(raffle.id, addName.trim(), num);
+      }
+      setAddMessage(`Se agregaron ${numbersToJoin.length} boleto(s) a ${addName.trim()}.`);
+      setAddName('');
+      setAddNumbers('');
+      await loadRaffle();
+    } catch (err: any) {
+      setAddError(err.message || 'Error al agregar los numeros.');
+    } finally {
+      setAdding(false);
     }
   };
 
@@ -414,6 +477,20 @@ export default function RafflePage() {
       </header>
 
       <main className="mx-auto grid max-w-7xl gap-8 px-6 py-10 lg:grid-cols-[1.2fr_0.8fr]">
+        {isCountdownActive && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="lg:col-span-2 flex flex-col items-center justify-center py-16 px-6 bg-gradient-to-br from-[#ec2aa4] to-rose-400 rounded-[3rem] shadow-[0_20px_60px_-15px_rgba(236,42,164,0.4)] border border-pink-400 relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-white opacity-10 mix-blend-overlay" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/cubes.png')" }}></div>
+            <p className="text-sm md:text-base font-bold uppercase tracking-[0.4em] text-pink-50 mb-6 relative z-10 animate-pulse text-center">El sorteo comienza en</p>
+            <div className="text-6xl sm:text-8xl md:text-[10rem] leading-none font-black text-white tracking-tighter tabular-nums text-center drop-shadow-2xl relative z-10">
+              {formatCountdown(timeDifference)}
+            </div>
+          </motion.div>
+        )}
+
         <div className="space-y-8">
           <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
             <Card className="rounded-[2rem] p-8">
@@ -466,6 +543,46 @@ export default function RafflePage() {
                 </div>
               </div>
             </div>
+
+            <Card className="mb-6 rounded-[2rem] p-6 shadow-sm border border-pink-100">
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#ec2aa4]">Registro Manual</p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-950">Agregar participantes</h2>
+              <form onSubmit={handleAddParticipant} className="mt-4 grid gap-4 sm:grid-cols-[1fr_1fr_auto] items-start">
+                <label className="block text-sm font-medium text-slate-700">
+                  Nombre del jugador
+                  <input
+                    type="text"
+                    value={addName}
+                    onChange={(e) => setAddName(e.target.value)}
+                    className="mt-2 w-full rounded-xl border border-pink-100 bg-[#fff9fc] px-4 py-3 outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100"
+                    placeholder="Ej: Maria Lopez"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-slate-700">
+                  Numeros (separados por coma)
+                  <input
+                    type="text"
+                    value={addNumbers}
+                    onChange={(e) => setAddNumbers(e.target.value)}
+                    className="mt-2 w-full rounded-xl border border-pink-100 bg-[#fff9fc] px-4 py-3 outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100"
+                    placeholder="Ej: 5, 12, 45"
+                  />
+                </label>
+                <Button type="submit" disabled={adding} className="mt-7 h-12 px-6 py-2 text-sm">
+                  {adding ? 'Agregando...' : 'Agregar'}
+                </Button>
+              </form>
+              {addError && (
+                <div className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  {addError}
+                </div>
+              )}
+              {addMessage && (
+                <div className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                  {addMessage}
+                </div>
+              )}
+            </Card>
 
             <Card className="rounded-[2rem] p-6">
               <div className="flex items-center justify-between gap-4">
