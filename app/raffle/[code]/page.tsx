@@ -343,7 +343,9 @@ export default function RafflePage() {
 
     const duplicates = numbersToJoin.filter((n) => occupiedNumbers.includes(n));
     if (duplicates.length > 0) {
-      setAddError(`Los numeros ${duplicates.join(', ')} ya estan ocupados.`);
+      const errorMsg = `¡Atención! Los numeros ${duplicates.join(', ')} ya están ocupados por otro participante.`;
+      setAddError(errorMsg);
+      window.alert(errorMsg); // Lanza la alerta emergente en la pantalla
       return;
     }
 
@@ -587,45 +589,47 @@ export default function RafflePage() {
               </div>
             </div>
 
-            <Card className="mb-6 rounded-[2rem] p-6 shadow-sm border border-pink-100">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#ec2aa4]">Registro Manual</p>
-              <h2 className="mt-2 text-2xl font-bold text-slate-950">Agregar participantes</h2>
-              <form onSubmit={handleAddParticipant} className="mt-4 grid gap-4 sm:grid-cols-[1fr_1fr_auto] items-start">
-                <label className="block text-sm font-medium text-slate-700">
-                  Nombre del jugador
-                  <input
-                    type="text"
-                    value={addName}
-                    onChange={(e) => setAddName(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-pink-100 bg-[#fff9fc] px-4 py-3 outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100"
-                    placeholder="Ej: Maria Lopez"
-                  />
-                </label>
-                <label className="block text-sm font-medium text-slate-700">
-                  Numeros (separados por coma)
-                  <input
-                    type="text"
-                    value={addNumbers}
-                    onChange={(e) => setAddNumbers(e.target.value)}
-                    className="mt-2 w-full rounded-xl border border-pink-100 bg-[#fff9fc] px-4 py-3 outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100"
-                    placeholder="Ej: 5, 12, 45"
-                  />
-                </label>
-                <Button type="submit" disabled={adding} className="mt-7 h-12 px-6 py-2 text-sm">
-                  {adding ? 'Agregando...' : 'Agregar'}
-                </Button>
-              </form>
-              {addError && (
-                <div className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                  {addError}
-                </div>
-              )}
-              {addMessage && (
-                <div className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                  {addMessage}
-                </div>
-              )}
-            </Card>
+            {raffle?.isStaff && (
+              <Card className="mb-6 rounded-[2rem] p-6 shadow-sm border border-pink-100">
+                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#ec2aa4]">Registro Manual</p>
+                <h2 className="mt-2 text-2xl font-bold text-slate-950">Agregar participantes</h2>
+                <form onSubmit={handleAddParticipant} className="mt-4 grid gap-4 sm:grid-cols-[1fr_1fr_auto] items-start">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Nombre del jugador
+                    <input
+                      type="text"
+                      value={addName}
+                      onChange={(e) => setAddName(e.target.value)}
+                      className="mt-2 w-full rounded-xl border border-pink-100 bg-[#fff9fc] px-4 py-3 outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100"
+                      placeholder="Ej: Maria Lopez"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium text-slate-700">
+                    Numeros (separados por coma)
+                    <input
+                      type="text"
+                      value={addNumbers}
+                      onChange={(e) => setAddNumbers(e.target.value)}
+                      className="mt-2 w-full rounded-xl border border-pink-100 bg-[#fff9fc] px-4 py-3 outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100"
+                      placeholder="Ej: 5, 12, 45"
+                    />
+                  </label>
+                  <Button type="submit" disabled={adding} className="mt-7 h-12 px-6 py-2 text-sm">
+                    {adding ? 'Agregando...' : 'Agregar'}
+                  </Button>
+                </form>
+                {addError && (
+                  <div className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                    {addError}
+                  </div>
+                )}
+                {addMessage && (
+                  <div className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                    {addMessage}
+                  </div>
+                )}
+              </Card>
+            )}
 
             <Card className="rounded-[2rem] p-6">
               <div className="flex items-center justify-between gap-4">

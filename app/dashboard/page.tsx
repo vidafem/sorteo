@@ -116,7 +116,7 @@ export default function Dashboard() {
     setError('');
 
     try {
-      await createRaffle({
+      const createdRaffle = await createRaffle({
         title: formData.title.trim(),
         description: formData.description?.trim() || '',
         prizeName: formData.prizeName?.trim() || '',
@@ -124,15 +124,8 @@ export default function Dashboard() {
         maxParticipants: formData.maxParticipants ? Number(formData.maxParticipants) : null,
       });
 
-      setFormData({
-        title: '',
-        description: '',
-        prizeName: '',
-        drawAt: '',
-        maxParticipants: null,
-      });
-      setShowCreateForm(false);
-      await loadDashboard();
+      // Redirigir inmediatamente a la pantalla del sorteo para agregar participantes
+      router.push(`/raffle/${createdRaffle.raffleCode}`);
     } catch (saveError: any) {
       setError(saveError?.message || 'No se pudo crear el sorteo.');
     } finally {
@@ -390,7 +383,7 @@ export default function Dashboard() {
 
                     <div className="mt-6 flex flex-wrap gap-3">
                       <Button onClick={() => router.push(`/raffle/${raffle.raffleCode}`)} className="px-5 py-3 text-sm">
-                        Ver sorteo
+                        Agregar participantes
                       </Button>
                       <button
                         onClick={() => handleCopyCode(raffle.raffleCode)}
