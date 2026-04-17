@@ -484,3 +484,22 @@ export const eliminateParticipantFromRaffle = async (raffleId: string, participa
     payload: {},
   });
 };
+
+export const deleteRaffle = async (raffleId: string) => {
+  const client = getClient();
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw new Error("Debes iniciar sesion");
+  }
+
+  const { error } = await client
+    .from("raffles")
+    .delete()
+    .eq("id", raffleId)
+    .eq("owner_id", user.id); // Validamos que solo el dueño lo pueda borrar
+
+  if (error) {
+    throw error;
+  }
+};
