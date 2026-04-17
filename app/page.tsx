@@ -21,6 +21,9 @@ export default function Home() {
       }
     };
 
+    checkAuth();
+  }, []);
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -162,14 +165,6 @@ export default function Home() {
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/40">
               <h3 className="text-xl font-semibold text-slate-900">Tono premium</h3>
               <p className="mt-3 text-slate-600">Gradientes y efectos sutiles para un look moderno.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-  );
-}
-              <p className="mt-3 text-slate-600">Colores vibrantes y componentes elegantes.</p>
             </div>
           </div>
         </div>
