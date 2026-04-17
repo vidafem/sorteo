@@ -169,6 +169,7 @@ export default function RafflePage() {
   const timeDifference = useMemo(() => {
     if (!raffle?.drawAt) return null;
     return new Date(raffle.drawAt).getTime() - Date.now();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [raffle?.drawAt, clockTick]);
 
   const isCountdownActive = timeDifference !== null && timeDifference > 0;
@@ -308,6 +309,8 @@ export default function RafflePage() {
   const canEliminate = Boolean(raffle?.staffAccess?.canManageRaffle || raffle?.staffAccess?.canEliminateParticipants);
 
   const handleManualSelectWinner = async (participantId: string) => {
+    if (!raffle) return;
+    
     const placeStr = prompt("Ingrese el lugar para este ganador (1, 2, o 3):", "1");
     if (!placeStr) return;
     const place = parseInt(placeStr, 10);
