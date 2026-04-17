@@ -599,7 +599,7 @@ export default function RafflePage() {
       </header>
 
       <main className="mx-auto grid max-w-7xl gap-8 px-6 py-10 lg:grid-cols-[1.2fr_0.8fr]">
-        {isCountdownActive && (
+        {isCountdownActive ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
