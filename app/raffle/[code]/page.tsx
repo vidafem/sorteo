@@ -599,16 +599,18 @@ export default function RafflePage() {
       </header>
 
       <main className="mx-auto grid max-w-7xl gap-8 px-6 py-10 lg:grid-cols-[1.2fr_0.8fr]">
-        {isCountdownActive ? (
+        {(!raffle.drawAt || isCountdownActive) ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             className="lg:col-span-2 flex flex-col items-center justify-center py-16 px-6 bg-gradient-to-br from-[#ec2aa4] to-rose-400 rounded-[3rem] shadow-[0_20px_60px_-15px_rgba(236,42,164,0.4)] border border-pink-400 relative overflow-hidden"
           >
             <div className="absolute inset-0 bg-white opacity-10 mix-blend-overlay" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/cubes.png')" }}></div>
-            <p className="text-sm md:text-base font-bold uppercase tracking-[0.4em] text-pink-50 mb-6 relative z-10 animate-pulse text-center">El sorteo comienza en</p>
-            <div className="text-6xl sm:text-8xl md:text-[10rem] leading-none font-black text-white tracking-tighter tabular-nums text-center drop-shadow-2xl relative z-10">
-              {formatCountdown(timeDifference)}
+            <p className="text-sm md:text-base font-bold uppercase tracking-[0.4em] text-pink-50 mb-6 relative z-10 animate-pulse text-center">
+              {raffle.drawAt ? 'El sorteo comienza en' : 'Sorteo por programar'}
+            </p>
+            <div className={`${raffle.drawAt ? 'text-6xl sm:text-8xl md:text-[10rem]' : 'text-4xl sm:text-6xl md:text-7xl pt-4'} leading-none font-black text-white tracking-tighter tabular-nums text-center drop-shadow-2xl relative z-10`}>
+              {raffle.drawAt ? formatCountdown(timeDifference as number) : 'Sin fecha definida'}
             </div>
           </motion.div>
         ) : (
