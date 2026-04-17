@@ -18,6 +18,54 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Configuration
+
+### Supabase Setup
+
+1. Create a Supabase project at [supabase.com](https://supabase.com)
+2. Go to Settings > API and copy your project URL and anon key
+3. Create a `.env.local` file in the root directory with:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+### Database Schema
+
+Create the `concursantes` table in Supabase with the following structure:
+
+```sql
+CREATE TABLE concursantes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  nombre TEXT NOT NULL,
+  ticket_bloqueado INTEGER NOT NULL,
+  es_ganador BOOLEAN DEFAULT FALSE
+);
+```
+
+### Admin Users
+
+In `app/admin/page.tsx`, update the `ADMIN_EMAILS` array with the email addresses of your admin users:
+
+```typescript
+const ADMIN_EMAILS = ['admin1@example.com', 'admin2@example.com']; // Replace with actual admin emails
+```
+
+### Creating Admin Users
+
+1. Go to Supabase Dashboard > Authentication > Users
+2. Add the admin users manually or through the registration form
+3. Note their email addresses for the `ADMIN_EMAILS` array
+
+## Features
+
+- **Landing Page**: Public page with login/register buttons
+- **Authentication**: Login and registration using Supabase Auth
+- **Admin Panel**: Only accessible to admin users (can select winners)
+- **Sorteo Page**: Protected page showing the lottery animation and winner
+- **User Registration**: Anyone can register, but only admins can manage winners
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More
