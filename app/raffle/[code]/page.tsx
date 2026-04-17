@@ -5,6 +5,9 @@ import { useParams, useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { motion } from 'framer-motion';
+import Confetti from 'react-confetti';
+import { useWindowSize } from 'react-use';
+import { supabase } from '@/lib/supabaseClient';
 import {
   eliminateParticipantFromRaffle,
   getCurrentUser,
@@ -63,6 +66,7 @@ const getNextAvailableNumber = (participants: RaffleParticipant[], maxParticipan
 export default function RafflePage() {
   const params = useParams();
   const router = useRouter();
+  const { width, height } = useWindowSize();
   const code = String(params.code || '');
 
   const [raffle, setRaffle] = useState<RaffleDetail | null>(null);
@@ -75,6 +79,13 @@ export default function RafflePage() {
   const [joinMessage, setJoinMessage] = useState('');
   const [joinError, setJoinError] = useState('');
   const [, setClockTick] = useState(0);
+  
+  const [showWinnerAnimation, setShowWinnerAnimation] = useState(false);
+  const [displayedWinner, setDisplayedWinner] = useState<RaffleParticipant | null>(null);
+  const [hideWinnerOverlay, setHideWinnerOverlay] = useState(false);
+  const [currentAnimatedNameIndex, setCurrentAnimatedNameIndex] = useState(0);
+  const [animationStyle, setAnimationStyle] = useState<'roulette' | 'cards' | 'number'>('cards');
+  const [rouletteParticipant, setRouletteParticipant] = useState<RaffleParticipant | null>(null);
 
   const loadRaffle = useCallback(async () => {
     const [raffleData, user] = await Promise.all([
@@ -115,11 +126,54 @@ export default function RafflePage() {
     return () => window.clearInterval(intervalId);
   }, []);
 
+  // Suscripción a cambios en Tiempo Real
+  useEffect(() => {
+    if (!raffle?.id || !supabase) return;
+
+    const channel = supabase
+      .channel('realtime_raffle')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'raffle_participants', filter: `raffle_id=eq.${raffle.id}` },
+        () => { void loadRaffle(); }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'raffles', filter: `id=eq.${raffle.id}` },
+        () => { void loadRaffle(); }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [raffle?.id, loadRaffle]);
+
   const countdownText = useMemo(() => getCountdownText(raffle?.drawAt ?? null), [raffle?.drawAt]);
-  const winner = useMemo(
+  const actualWinner = useMemo(
     () => raffle?.participants.find((participant) => participant.status === 'winner') ?? null,
     [raffle],
   );
+
+  // Lógica de la Ruleta y Revelación del Ganador
+  useEffect(() => {
+    if (actualWinner && !displayedWinner && !showWinnerAnimation) {
+      setShowWinnerAnimation(true);
+      setHideWinnerOverlay(false);
+      
+      const timer = setTimeout(() => {
+        setShowWinnerAnimation(false);
+        setDisplayedWinner(actualWinner);
+      }, 4000); // 4 segundos de ruleta
+      
+      return () => clearTimeout(timer);
+    } else if (!actualWinner) {
+      setDisplayedWinner(null);
+      setShowWinnerAnimation(false);
+      setHideWinnerOverlay(false);
+    }
+  }, [actualWinner, displayedWinner, showWinnerAnimation]);
+
   const occupiedNumbers = useMemo(
     () =>
       (raffle?.participants ?? [])
@@ -131,6 +185,26 @@ export default function RafflePage() {
     () => (raffle?.participants ?? []).filter((participant) => participant.status !== 'eliminated'),
     [raffle],
   );
+
+  // Animación super rápida de nombres para la Ruleta
+  useEffect(() => {
+    if (!showWinnerAnimation || activeParticipants.length === 0) return;
+    const interval = setInterval(() => {
+      const randomIndex = Math.floor(Math.random() * activeParticipants.length);
+      setRouletteParticipant(activeParticipants[randomIndex]);
+    }, 80);
+    return () => clearInterval(interval);
+  }, [showWinnerAnimation, activeParticipants]);
+
+  // Mini-animación de nombres para la Sala de Espera
+  useEffect(() => {
+    if (activeParticipants.length === 0) return;
+    const interval = setInterval(() => {
+      setCurrentAnimatedNameIndex((prev) => (prev + 1) % activeParticipants.length);
+    }, 1500); // Cambia el nombre cada 1.5 segundos
+    return () => clearInterval(interval);
+  }, [activeParticipants.length]);
+
   const canManage = Boolean(
     raffle?.staffAccess?.canManageRaffle ||
     raffle?.staffAccess?.canPickWinner ||
@@ -243,6 +317,68 @@ export default function RafflePage() {
 
   return (
     <div className="min-h-screen bg-[var(--page-bg)]">
+      {/* Overlay de Sorteo en Vivo (Ruleta y Confeti) */}
+      {(showWinnerAnimation || (displayedWinner && !hideWinnerOverlay)) && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/85 p-6 backdrop-blur-md">
+          {displayedWinner && !showWinnerAnimation && (
+            <Confetti width={width} height={height} recycle={false} numberOfPieces={600} gravity={0.15} />
+          )}
+          
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className={`relative flex w-full max-w-2xl flex-col items-center justify-center rounded-[3rem] border border-pink-500/30 ${animationStyle === 'cards' && showWinnerAnimation ? 'bg-transparent border-none shadow-none' : 'bg-white p-10 shadow-[0_0_100px_-20px_rgba(236,42,164,0.6)]'} text-center`}
+          >
+            {showWinnerAnimation ? (
+              <>
+                {animationStyle === 'roulette' && (
+                  <>
+                    <p className="text-xl font-bold uppercase tracking-[0.3em] text-[#ec2aa4] animate-pulse">Sorteando...</p>
+                    <div className="mt-8 text-5xl font-extrabold text-slate-900 md:text-7xl truncate w-full px-4">
+                      {rouletteParticipant?.displayName || '???'}
+                    </div>
+                  </>
+                )}
+                {animationStyle === 'cards' && (
+                  <div className="flex flex-col items-center">
+                    <p className="mb-6 text-xl font-bold uppercase tracking-[0.3em] text-white animate-pulse shadow-black drop-shadow-md">Barajando...</p>
+                    <div className="relative h-56 w-80 rounded-3xl bg-gradient-to-br from-[#ec2aa4] to-rose-400 p-1.5 shadow-[0_20px_60px_-15px_rgba(236,42,164,0.6)]">
+                      <div className="flex h-full w-full flex-col items-center justify-center rounded-[1.3rem] bg-white/95 p-6 backdrop-blur-sm">
+                        <div className="text-4xl font-black text-slate-800 truncate w-full">{rouletteParticipant?.displayName || '???'}</div>
+                        <div className="mt-6 rounded-full bg-pink-100 px-6 py-2 text-2xl font-bold text-[#ec2aa4]">
+                          #{String(rouletteParticipant?.assignedNumber || 0).padStart(3, '0')}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {animationStyle === 'number' && (
+                  <>
+                    <p className="text-xl font-bold uppercase tracking-[0.3em] text-[#ec2aa4] animate-pulse">Buscando numero...</p>
+                    <div className="mt-6 text-[8rem] leading-none font-black text-slate-900 tracking-tighter">
+                      {String(rouletteParticipant?.assignedNumber || 0).padStart(3, '0')}
+                    </div>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-xl font-bold uppercase tracking-[0.3em] text-emerald-500">¡Tenemos un ganador!</p>
+                <div className="mt-8 text-4xl font-extrabold text-slate-900 md:text-6xl break-words w-full">
+                  {displayedWinner?.displayName}
+                </div>
+                <div className="mt-6 flex h-20 w-20 items-center justify-center rounded-full bg-pink-50 text-2xl font-bold text-[#ec2aa4]">
+                  #{String(displayedWinner?.assignedNumber).padStart(3, '0')}
+                </div>
+                <Button onClick={() => setHideWinnerOverlay(true)} className="mt-10 px-10 py-4 text-lg rounded-full">
+                  Continuar
+                </Button>
+              </>
+            )}
+          </motion.div>
+        </div>
+      )}
+
       <header className="border-b border-pink-100 bg-white/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-4">
@@ -308,15 +444,33 @@ export default function RafflePage() {
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
+            <div className="mb-6 flex flex-col gap-3 rounded-[1.5rem] border border-pink-100 bg-white p-5 shadow-[0_8px_30px_-20px_rgba(190,24,93,0.15)]">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#ec2aa4]">Visualizacion</p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="text-base font-bold text-slate-900">¿Como deseas ver el sorteo?</h2>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => setAnimationStyle('roulette')} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${animationStyle === 'roulette' ? 'bg-[#ec2aa4] text-white shadow-md' : 'bg-slate-50 text-slate-600 hover:bg-pink-50 hover:text-pink-600'}`}>
+                    Ruleta
+                  </button>
+                  <button onClick={() => setAnimationStyle('cards')} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${animationStyle === 'cards' ? 'bg-[#ec2aa4] text-white shadow-md' : 'bg-slate-50 text-slate-600 hover:bg-pink-50 hover:text-pink-600'}`}>
+                    Tarjetas
+                  </button>
+                  <button onClick={() => setAnimationStyle('number')} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${animationStyle === 'number' ? 'bg-[#ec2aa4] text-white shadow-md' : 'bg-slate-50 text-slate-600 hover:bg-pink-50 hover:text-pink-600'}`}>
+                    Solo Numero
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <Card className="rounded-[2rem] p-6">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#ec2aa4]">Participantes</p>
                   <h2 className="mt-2 text-2xl font-bold text-slate-950">Lista desplazable del sorteo</h2>
                 </div>
-                {winner && (
+                {displayedWinner && (
                   <div className="rounded-full bg-emerald-100 px-4 py-2 text-sm font-semibold text-emerald-700">
-                    Ganador: {winner.displayName}
+                    Ganador: {displayedWinner.displayName}
                   </div>
                 )}
               </div>
@@ -351,14 +505,14 @@ export default function RafflePage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <span
                             className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${
-                              participant.status === 'winner'
+                              participant.status === 'winner' && !showWinnerAnimation
                                 ? 'bg-emerald-100 text-emerald-700'
                                 : participant.status === 'eliminated'
                                   ? 'bg-rose-100 text-rose-700'
                                   : 'bg-slate-100 text-slate-600'
                             }`}
                           >
-                            {participant.status}
+                            {participant.status === 'winner' && showWinnerAnimation ? 'active' : participant.status}
                           </span>
 
                           {canPickWinner && participant.status !== 'winner' && participant.status !== 'eliminated' && (
@@ -454,6 +608,18 @@ export default function RafflePage() {
             <Card className="rounded-[2rem] p-6">
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#ec2aa4]">Numeros ocupados</p>
               <h2 className="mt-2 text-2xl font-bold text-slate-950">Vista rapida de ocupacion</h2>
+
+              {activeParticipants.length > 0 && (
+                <div className="mt-4 flex items-center gap-3 rounded-[1.2rem] bg-pink-50/50 px-4 py-3 border border-pink-100/50">
+                  <span className="relative flex h-3 w-3">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#ec2aa4] opacity-75"></span>
+                    <span className="relative inline-flex h-3 w-3 rounded-full bg-[#ec2aa4]"></span>
+                  </span>
+                  <p className="text-sm font-medium text-slate-600">
+                    En sala: <strong className="text-slate-900">{activeParticipants[currentAnimatedNameIndex]?.displayName}</strong>
+                  </p>
+                </div>
+              )}
 
               <div className="mt-5 flex max-h-60 flex-wrap gap-2 overflow-y-auto">
                 {occupiedNumbers.length === 0 ? (
