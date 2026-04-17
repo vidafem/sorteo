@@ -187,29 +187,39 @@ export default function RafflePage() {
 
   const countdownText = isCountdownActive ? formatCountdown(timeDifference) : (raffle?.drawAt ? 'Sorteo finalizado' : 'Sin fecha definida');
 
-  const actualWinner = useMemo(
-    () => raffle?.participants.find((participant) => participant.status === 'winner') ?? null,
+  const actualWinners = useMemo(
+    () => (raffle?.participants ?? []).filter((participant) => participant.status === 'winner'),
     [raffle],
   );
 
-  // Lógica de la Ruleta y Revelación del Ganador
+  // Lógica de la Ruleta y Revelación del Ganador (Secuencial 3, 2, 1)
+  const [drawingPlace, setDrawingPlace] = useState<number>(1);
+  const [animatingWinner, setAnimatingWinner] = useState<RaffleParticipant | null>(null);
+  const [animatedWinnerIds, setAnimatedWinnerIds] = useState<Set<string>>(new Set());
+
   useEffect(() => {
-    if (actualWinner && !displayedWinner && !showWinnerAnimation) {
+    const unAnimatedWinner = actualWinners.find(w => !animatedWinnerIds.has(w.id));
+    if (unAnimatedWinner && !showWinnerAnimation && !displayedWinner) {
+      setDrawingPlace(unAnimatedWinner.place || 1);
+      setAnimatingWinner(unAnimatedWinner);
       setShowWinnerAnimation(true);
       setHideWinnerOverlay(false);
       
       const timer = setTimeout(() => {
         setShowWinnerAnimation(false);
-        setDisplayedWinner(actualWinner);
+        setDisplayedWinner(unAnimatedWinner);
+        setAnimatedWinnerIds(prev => new Set(prev).add(unAnimatedWinner.id));
+        playWinSound();
       }, 7000); // 7 segundos de ruleta (frenado gradual)
       
       return () => clearTimeout(timer);
-    } else if (!actualWinner) {
+    } else if (actualWinners.length === 0) {
       setDisplayedWinner(null);
       setShowWinnerAnimation(false);
       setHideWinnerOverlay(false);
+      setAnimatedWinnerIds(new Set());
     }
-  }, [actualWinner, displayedWinner, showWinnerAnimation]);
+  }, [actualWinners, displayedWinner, showWinnerAnimation, animatedWinnerIds, playWinSound]);
 
   const occupiedNumbers = useMemo(
     () =>
@@ -223,9 +233,9 @@ export default function RafflePage() {
     [raffle],
   );
 
-  // Animación de nombres para la Ruleta (comienza rápido y se va deteniendo)
+  // Animación de nombres para la Ruleta (comienza muy rápido y se va deteniendo)
   useEffect(() => {
-    if (!showWinnerAnimation || activeParticipants.length === 0 || !actualWinner) return;
+    if (!showWinnerAnimation || activeParticipants.length === 0 || !animatingWinner) return;
 
     let timeoutId: number;
     const startTime = Date.now();
@@ -234,25 +244,24 @@ export default function RafflePage() {
     const tick = () => {
       const elapsed = Date.now() - startTime;
       
-      // Elegir a alguien al azar que NO sea el ganador (para mantener la tensión)
-      const others = activeParticipants.filter((p) => p.id !== actualWinner.id);
+      const others = activeParticipants.filter((p) => p.id !== animatingWinner.id);
       const pool = others.length > 0 ? others : activeParticipants;
       const randomIndex = Math.floor(Math.random() * pool.length);
       
       setRouletteParticipant(pool[randomIndex]);
       playTick();
 
-      // Efecto de frenado: inicia en 100ms y va subiendo exponencialmente hasta ~700ms
+      // Efecto de frenado más drástico: arranca a velocidad luz (20ms) y frena suave
       const progress = elapsed / duration;
-      const nextDelay = 100 + Math.pow(progress, 3) * 600;
+      const nextDelay = 20 + Math.pow(progress, 5) * 800;
 
       timeoutId = window.setTimeout(tick, nextDelay);
     };
 
-    timeoutId = window.setTimeout(tick, 100);
+    timeoutId = window.setTimeout(tick, 20);
 
     return () => window.clearTimeout(timeoutId);
-  }, [showWinnerAnimation, activeParticipants, actualWinner, playTick]);
+  }, [showWinnerAnimation, activeParticipants, animatingWinner, playTick]);
 
   // Mini-animación de nombres para la Sala de Espera
   useEffect(() => {
@@ -298,34 +307,40 @@ export default function RafflePage() {
   const canPickWinner = Boolean(raffle?.staffAccess?.canManageRaffle || raffle?.staffAccess?.canPickWinner);
   const canEliminate = Boolean(raffle?.staffAccess?.canManageRaffle || raffle?.staffAccess?.canEliminateParticipants);
 
-  const handleSelectWinner = useCallback(async (participantId: string) => {
-    if (!raffle) {
-      return;
-    }
-
+  const handleManualSelectWinner = async (participantId: string) => {
+    const placeStr = prompt("Ingrese el lugar para este ganador (1, 2, o 3):", "1");
+    if (!placeStr) return;
+    const place = parseInt(placeStr, 10);
+    if (![1,2,3].includes(place)) return alert("Lugar invalido. Debe ser 1, 2 o 3.");
+    if (actualWinners.find(w => w.place === place)) return alert(`Ya existe un ganador en el ${place}º lugar.`);
+    
     setActionLoadingId(participantId);
     try {
-      await selectWinnerForRaffle(raffle.id, participantId);
+      await selectWinnerForRaffle(raffle.id, participantId, place);
       await loadRaffle();
     } catch (error) {
       console.error('No se pudo seleccionar el ganador:', error);
     } finally {
       setActionLoadingId('');
     }
-  }, [raffle, loadRaffle]);
+  };
 
-  const autoTriggered = useRef(false);
-
-  // Auto-disparar el sorteo cuando el tiempo llega a cero (solo el admin)
-  useEffect(() => {
-    if (timeDifference !== null && timeDifference <= 0 && !autoTriggered.current) {
-      autoTriggered.current = true;
-      if (canPickWinner && !actualWinner && activeParticipants.length > 0 && !actionLoadingId) {
-        const randomIndex = Math.floor(Math.random() * activeParticipants.length);
-        void handleSelectWinner(activeParticipants[randomIndex].id);
-      }
+  const handleRandomDraw = async (place: number) => {
+    if (!raffle) return;
+    const eligible = activeParticipants.filter(p => p.status !== 'winner');
+    if (eligible.length === 0) return alert("No hay participantes elegibles.");
+    
+    const selected = eligible[Math.floor(Math.random() * eligible.length)];
+    setActionLoadingId('drawing');
+    try {
+      await selectWinnerForRaffle(raffle.id, selected.id, place);
+      await loadRaffle();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActionLoadingId('');
     }
-  }, [timeDifference, canPickWinner, actualWinner, activeParticipants, actionLoadingId, handleSelectWinner]);
+  };
 
   const handleEliminateParticipant = async (participantId: string) => {
     if (!raffle) {
@@ -436,9 +451,9 @@ export default function RafflePage() {
               <>
                 {animationStyle === 'roulette' && (
                   <>
-                    <p className="text-xl font-bold uppercase tracking-[0.3em] text-[#ec2aa4] animate-pulse">Sorteando...</p>
-                    <div className="mt-8 text-5xl font-extrabold text-slate-900 md:text-7xl truncate w-full px-4">
-                      {rouletteParticipant?.displayName || '???'}
+                    <p className="text-xl font-bold uppercase tracking-[0.3em] text-[#ec2aa4] animate-pulse">Sorteando {drawingPlace === 3 ? '3er Lugar' : drawingPlace === 2 ? '2do Lugar' : 'Gran Ganador'}...</p>
+                    <div className="mt-8 text-4xl font-extrabold text-slate-900 md:text-6xl truncate w-full px-4">
+                      #{String(rouletteParticipant?.assignedNumber || 0).padStart(3, '0')} - {rouletteParticipant?.displayName || '???'}
                     </div>
                   </>
                 )}
@@ -477,16 +492,17 @@ export default function RafflePage() {
                 )}
                 {animationStyle === 'number' && (
                   <>
-                    <p className="text-xl font-bold uppercase tracking-[0.3em] text-[#ec2aa4] animate-pulse">Buscando numero...</p>
+                    <p className="text-xl font-bold uppercase tracking-[0.3em] text-[#ec2aa4] animate-pulse">Sorteando {drawingPlace === 3 ? '3er Lugar' : drawingPlace === 2 ? '2do Lugar' : 'Gran Ganador'}...</p>
                     <div className="mt-6 text-[8rem] leading-none font-black text-slate-900 tracking-tighter">
-                      {String(rouletteParticipant?.assignedNumber || 0).padStart(3, '0')}
+                      #{String(rouletteParticipant?.assignedNumber || 0).padStart(3, '0')}
                     </div>
+                    <div className="mt-4 text-4xl font-bold text-slate-700">{rouletteParticipant?.displayName || '???'}</div>
                   </>
                 )}
               </>
             ) : (
               <>
-                <p className="text-xl font-bold uppercase tracking-[0.3em] text-emerald-500">¡Tenemos un ganador!</p>
+                <p className="text-xl font-bold uppercase tracking-[0.3em] text-emerald-500">¡Ganador del {drawingPlace === 3 ? '3er Lugar' : drawingPlace === 2 ? '2do Lugar' : '1er Lugar'}!</p>
                 <div className="mt-8 text-4xl font-extrabold text-slate-900 md:text-6xl break-words w-full">
                   {displayedWinner?.displayName}
                 </div>
@@ -647,6 +663,17 @@ export default function RafflePage() {
                 )}
               </div>
             </div>
+            
+            {canPickWinner && (
+              <Card className="rounded-[2rem] p-6 mb-6 mt-6 border-4 border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50">
+                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-amber-600 mb-4">Controles de Sorteo</p>
+                <div className="flex flex-wrap gap-4">
+                  <Button disabled={!!actualWinners.find(w => w.place === 3) || actionLoadingId !== ''} onClick={() => handleRandomDraw(3)} className="bg-amber-700 hover:bg-amber-800 border-none shadow-lg">Sorteo 3er Lugar</Button>
+                  <Button disabled={!!actualWinners.find(w => w.place === 2) || actionLoadingId !== ''} onClick={() => handleRandomDraw(2)} className="bg-slate-400 hover:bg-slate-500 border-none shadow-lg">Sorteo 2do Lugar</Button>
+                  <Button disabled={!!actualWinners.find(w => w.place === 1) || actionLoadingId !== ''} onClick={() => handleRandomDraw(1)} className="bg-yellow-500 hover:bg-yellow-600 border-none shadow-lg text-lg px-8">Sorteo 1er Lugar</Button>
+                </div>
+              </Card>
+            )}
 
             {raffle?.isStaff && (
               <Card className="mb-6 rounded-[2rem] p-6 shadow-sm border border-pink-100">
@@ -696,9 +723,13 @@ export default function RafflePage() {
                   <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#ec2aa4]">Participantes</p>
                   <h2 className="mt-2 text-2xl font-bold text-slate-950">Lista desplazable del sorteo</h2>
                 </div>
-                {displayedWinner && (
-                  <div className="rounded-full bg-emerald-100 px-4 py-2 text-sm font-semibold text-emerald-700">
-                    Ganador: {displayedWinner.displayName}
+                {actualWinners.length > 0 && (
+                  <div className="flex flex-col items-end gap-1">
+                    {actualWinners.map(w => (
+                      <div key={w.id} className="rounded-full bg-emerald-100 px-4 py-1 text-xs font-semibold text-emerald-700">
+                        {w.place}º Lugar: {w.displayName}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -740,16 +771,16 @@ export default function RafflePage() {
                                   : 'bg-slate-100 text-slate-600'
                             }`}
                           >
-                            {participant.status === 'winner' && showWinnerAnimation ? 'active' : participant.status}
+                            {participant.status === 'winner' && !showWinnerAnimation ? `Ganador ${participant.place}º` : (participant.status === 'winner' ? 'active' : participant.status)}
                           </span>
 
                           {canPickWinner && participant.status !== 'winner' && participant.status !== 'eliminated' && (
                             <button
-                              onClick={() => handleSelectWinner(participant.id)}
+                              onClick={() => handleManualSelectWinner(participant.id)}
                               disabled={actionLoadingId === participant.id}
-                              className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-60"
+                              className="rounded-full border border-pink-100 bg-pink-50 px-4 py-2 text-sm font-semibold text-pink-600 transition hover:bg-pink-100 disabled:opacity-60"
                             >
-                              {actionLoadingId === participant.id ? 'Guardando...' : 'Elegir ganador'}
+                              {actionLoadingId === participant.id ? 'Guardando...' : 'Elegir Manual'}
                             </button>
                           )}
 

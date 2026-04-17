@@ -13,6 +13,7 @@ export interface RaffleParticipant {
   displayName: string;
   assignedNumber: number;
   status: "active" | "eliminated" | "winner";
+  place?: number | null;
   joinedByUserId: string | null;
   joinedAt: string;
   createdAt: string;
@@ -116,6 +117,7 @@ const mapParticipant = (participant: RawParticipant): RaffleParticipant => ({
   displayName: participant.display_name,
   assignedNumber: participant.assigned_number,
   status: participant.status,
+  place: (participant as any).place,
   joinedByUserId: participant.joined_by_user_id,
   joinedAt: participant.joined_at,
   createdAt: participant.created_at,
@@ -417,23 +419,13 @@ export const joinRaffle = async (
   return mapParticipant(data as RawParticipant);
 };
 
-export const selectWinnerForRaffle = async (raffleId: string, participantId: string) => {
+export const selectWinnerForRaffle = async (raffleId: string, participantId: string, place: number) => {
   const client = getClient();
   const user = await getCurrentUser();
 
-  const { error: clearWinnerError } = await client
-    .from("raffle_participants")
-    .update({ status: "active" })
-    .eq("raffle_id", raffleId)
-    .eq("status", "winner");
-
-  if (clearWinnerError) {
-    throw clearWinnerError;
-  }
-
   const { error: winnerError } = await client
     .from("raffle_participants")
-    .update({ status: "winner" })
+    .update({ status: "winner", place })
     .eq("raffle_id", raffleId)
     .eq("id", participantId);
 
@@ -441,16 +433,18 @@ export const selectWinnerForRaffle = async (raffleId: string, participantId: str
     throw winnerError;
   }
 
-  const { error: raffleError } = await client
-    .from("raffles")
-    .update({
-      winner_participant_id: participantId,
-      status: "closed",
-    })
-    .eq("id", raffleId);
+  if (place === 1) {
+    const { error: raffleError } = await client
+      .from("raffles")
+      .update({
+        winner_participant_id: participantId,
+        status: "closed",
+      })
+      .eq("id", raffleId);
 
-  if (raffleError) {
-    throw raffleError;
+    if (raffleError) {
+      throw raffleError;
+    }
   }
 
   await client.from("raffle_events").insert({
@@ -458,7 +452,7 @@ export const selectWinnerForRaffle = async (raffleId: string, participantId: str
     participant_id: participantId,
     actor_user_id: user?.id ?? null,
     event_type: "winner_selected",
-    payload: {},
+    payload: { place },
   });
 };
 
