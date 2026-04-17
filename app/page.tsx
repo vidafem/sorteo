@@ -223,15 +223,24 @@ export default function Home() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Ingresa o encuentra tu app ideal"
+                  placeholder="Ingresa el codigo de tu sorteo"
                   className="h-14 flex-1 rounded-[1.2rem] border-0 bg-transparent px-5 text-base text-slate-900 outline-none placeholder:text-slate-400"
                 />
                 <Button
                   onClick={() => (user ? router.push('/dashboard') : openModal('register'))}
                   className="h-14 min-w-[10rem] rounded-[1.2rem] px-6 py-3 text-sm"
                 >
-                  Comenzar
+                  Ingresar
                 </Button>
+              </div>
+
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  className="rounded-full border border-white/25 bg-white/10 px-5 py-2 text-sm font-semibold text-white/95 backdrop-blur-sm"
+                >
+                  Crear nuevo sorteo
+                </button>
               </div>
 
               <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-white/90">
