@@ -145,7 +145,7 @@ export default function RafflePage() {
       .subscribe();
 
     return () => {
-      void supabase.removeChannel(channel);
+      void supabase?.removeChannel(channel);
     };
   }, [raffle?.id, loadRaffle]);
 
@@ -164,7 +164,7 @@ export default function RafflePage() {
       const timer = setTimeout(() => {
         setShowWinnerAnimation(false);
         setDisplayedWinner(actualWinner);
-      }, 4000); // 4 segundos de ruleta
+      }, 7000); // 7 segundos de ruleta (frenado gradual)
       
       return () => clearTimeout(timer);
     } else if (!actualWinner) {
@@ -186,15 +186,35 @@ export default function RafflePage() {
     [raffle],
   );
 
-  // Animación super rápida de nombres para la Ruleta
+  // Animación de nombres para la Ruleta (comienza rápido y se va deteniendo)
   useEffect(() => {
-    if (!showWinnerAnimation || activeParticipants.length === 0) return;
-    const interval = setInterval(() => {
-      const randomIndex = Math.floor(Math.random() * activeParticipants.length);
-      setRouletteParticipant(activeParticipants[randomIndex]);
-    }, 80);
-    return () => clearInterval(interval);
-  }, [showWinnerAnimation, activeParticipants]);
+    if (!showWinnerAnimation || activeParticipants.length === 0 || !actualWinner) return;
+
+    let timeoutId: number;
+    const startTime = Date.now();
+    const duration = 7000; // Debe coincidir con los 7 segundos de arriba
+
+    const tick = () => {
+      const elapsed = Date.now() - startTime;
+      
+      // Elegir a alguien al azar que NO sea el ganador (para mantener la tensión)
+      const others = activeParticipants.filter((p) => p.id !== actualWinner.id);
+      const pool = others.length > 0 ? others : activeParticipants;
+      const randomIndex = Math.floor(Math.random() * pool.length);
+      
+      setRouletteParticipant(pool[randomIndex]);
+
+      // Efecto de frenado: inicia en 100ms y va subiendo exponencialmente hasta ~700ms
+      const progress = elapsed / duration;
+      const nextDelay = 100 + Math.pow(progress, 3) * 600;
+
+      timeoutId = window.setTimeout(tick, nextDelay);
+    };
+
+    timeoutId = window.setTimeout(tick, 100);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [showWinnerAnimation, activeParticipants, actualWinner]);
 
   // Mini-animación de nombres para la Sala de Espera
   useEffect(() => {
