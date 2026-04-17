@@ -67,8 +67,8 @@ export default function SorteoPage() {
             <h2 className="text-2xl font-semibold text-yellow-400 mb-6 text-center">
               📊 Información del Sorteo
             </h2>
-            <NumberDisplay />
-            {ganador && <WinnerReveal winner={ganador.nombre} />}
+            <NumberDisplay numero={ganador?.ticket_bloqueado || null} />
+            {ganador && <WinnerReveal nombre={ganador.nombre} />}
           </div>
         </div>
 

@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { register } from '@/lib/queries';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');

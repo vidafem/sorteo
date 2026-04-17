@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import FormConcursante from "@/components/admin/FormConcursante";
 import ListaConcursantes from "@/components/admin/ListaConcursantes";
 import { getConcursantes, marcarGanador, getCurrentUser, type Concursante } from "@/lib/queries";
-import { Button } from "@/components/ui/Button";
+import Button from "@/components/ui/Button";
 
 const ADMIN_EMAILS = ['admin1@example.com', 'admin2@example.com']; // Cambiar por los emails reales
 
