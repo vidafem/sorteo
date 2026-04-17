@@ -65,10 +65,18 @@ export default function RafflePage() {
   const [addMessage, setAddMessage] = useState('');
 
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const initialLoadRef = useRef(true);
 
   const loadRaffle = useCallback(async () => {
     const raffleData = await getRaffleByCode(code);
     setRaffle(raffleData);
+
+    // Evita repetir la animacion de ganadores pasados si recargas la pagina
+    if (initialLoadRef.current && raffleData) {
+      initialLoadRef.current = false;
+      const existingWinners = raffleData.participants.filter(p => p.status === 'winner').map(p => p.id);
+      setAnimatedWinnerIds(new Set(existingWinners));
+    }
   }, [code]);
 
   useEffect(() => {
@@ -512,7 +520,7 @@ export default function RafflePage() {
                 <div className="mt-6 flex h-20 w-20 items-center justify-center rounded-full bg-pink-50 text-2xl font-bold text-[#ec2aa4]">
                   #{String(displayedWinner?.assignedNumber).padStart(3, '0')}
                 </div>
-                <Button onClick={() => setHideWinnerOverlay(true)} className="mt-10 px-10 py-4 text-lg rounded-full">
+                <Button onClick={() => { setHideWinnerOverlay(true); setDisplayedWinner(null); }} className="mt-10 px-10 py-4 text-lg rounded-full">
                   Continuar
                 </Button>
               </>
