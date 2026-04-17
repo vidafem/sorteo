@@ -1,6 +1,10 @@
 "use client";
 
-import type { Concursante } from "@/src/lib/queries";
+export interface Concursante {
+  id: string | number;
+  nombre: string;
+  ticket_bloqueado: number;
+}
 
 export default function ListaConcursantes({
   concursantes,
