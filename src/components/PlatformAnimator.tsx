@@ -5,13 +5,9 @@ import { useEffect, useState } from 'react';
 
 export default function PlatformAnimator() {
   const platforms = [
-    { name: 'Instagram', icon: 'IG', color: '#E1306C' },
-    { name: 'TikTok', icon: 'TT', color: '#000000' },
-    { name: 'Facebook', icon: 'FB', color: '#1877F2' },
-    { name: 'YouTube', icon: 'YT', color: '#FF0000' },
-    { name: 'Twitter', icon: 'X', color: '#000000' },
-    { name: 'LinkedIn', icon: 'IN', color: '#0A66C2' },
-    { name: 'Twitch', icon: 'TV', color: '#9146FF' },
+    { name: 'Instagram', icon: 'IG', color: '#ffffff' },
+    { name: 'TikTok', icon: 'TT', color: '#ffffff' },
+    { name: 'Facebook', icon: 'FB', color: '#ffffff' },
   ];
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -44,7 +40,7 @@ export default function PlatformAnimator() {
         </AnimatePresence>
       </h1>
       <p className="mx-auto max-w-2xl text-base text-white/88 sm:text-lg">
-        Organiza sorteos profesionales en tu red social favorita con una portada clara, confiable y atractiva.
+        Elige ganadores de tu comunidad de manera justa, transparente y profesional.
       </p>
     </div>
   );

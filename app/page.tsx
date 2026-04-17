@@ -20,62 +20,53 @@ export default function Home() {
   const router = useRouter();
 
   const appCards = [
-    { title: 'Sorteo en Instagram', description: 'Escoge un comentario ganador de tus fotos.', icon: 'IG', tag: 'Popular', color: 'bg-pink-100 text-pink-700' },
-    { title: 'Sorteo en Facebook', description: 'Selecciona ganadores de publicaciones y comentarios.', icon: 'FB', tag: 'Social', color: 'bg-blue-100 text-blue-700' },
-    { title: 'Listado de Nombres', description: 'Carga una lista y elige al azar con total rapidez.', icon: 'TXT', tag: 'Simple', color: 'bg-amber-100 text-amber-700' },
-    { title: 'Sorteo en Twitter', description: 'Escoge ganadores de RTs, likes y respuestas.', icon: 'X', tag: 'Engagement', color: 'bg-sky-100 text-sky-700' },
-    { title: 'Sorteo Multi-Red', description: 'Combina varias fuentes en un solo flujo.', icon: 'MR', tag: 'Pro', color: 'bg-violet-100 text-violet-700' },
-    { title: 'Sorteo en TikTok', description: 'Elige comentarios ganadores en videos y campañas.', icon: 'TT', tag: 'Video', color: 'bg-rose-100 text-rose-700' },
-    { title: 'Sorteo en YouTube', description: 'Selecciona comentarios validos de tus videos.', icon: 'YT', tag: 'Creator', color: 'bg-red-100 text-red-700' },
-    { title: 'Sorteo en LinkedIn', description: 'Ideal para dinamicas de marca y comunidad.', icon: 'IN', tag: 'B2B', color: 'bg-cyan-100 text-cyan-700' },
-    { title: 'Sorteo en Twitch', description: 'Escoge ganadores desde tus streams en vivo.', icon: 'TV', tag: 'Live', color: 'bg-indigo-100 text-indigo-700' },
-    { title: 'La Ruleta Aleatoria', description: 'Gira una ruleta visual para elegir al instante.', icon: 'RL', tag: 'Interactivo', color: 'bg-lime-100 text-lime-700' },
-    { title: 'Numeros Aleatorios', description: 'Genera numeros y resultados en segundos.', icon: 'NO', tag: 'Utilidad', color: 'bg-emerald-100 text-emerald-700' },
-    { title: 'Sorteo en Bluesky', description: 'Escoge un comentario ganador de tus publicaciones.', icon: 'BS', tag: 'Nuevo', color: 'bg-fuchsia-100 text-fuchsia-700' },
+    { title: 'Sorteo en Instagram', description: 'Elige comentarios ganadores de tus publicaciones.', icon: 'IG', tag: 'Popular', color: 'bg-pink-100 text-pink-700' },
+    { title: 'Sorteo en Facebook', description: 'Selecciona ganadores de tu comunidad.', icon: 'FB', tag: 'Social', color: 'bg-blue-100 text-blue-700' },
+    { title: 'Sorteo en TikTok', description: 'Dinamiza tus videos y gana engagement.', icon: 'TT', tag: 'Video', color: 'bg-slate-100 text-slate-800' },
   ];
 
   const testimonials = [
-    { name: 'Jackie Lawson', handle: '@JackieLawson', quote: 'Super recomendado y muy facil de usar.' },
-    { name: 'Marketing Maven', handle: '@MarketingMaven1', quote: 'Facil, divertido y muy efectivo.' },
-    { name: 'Timmothy Kelley', handle: '@timm_othy9', quote: 'Aumente mis ventas y la experiencia se siente premium.' },
+    { name: 'Maria Rodriguez', handle: '@mariarod_oficial', quote: 'Genial para mis dinámicas en Instagram, muy fácil de usar.' },
+    { name: 'Carlos López', handle: '@carloslopez.mx', quote: 'Mis seguidores aman los sorteos, ganamos mucho engagement.' },
+    { name: 'Sofia Navarro', handle: '@sofianavarro_co', quote: 'La mejor herramienta para hacer sorteos transparentes y profesionales.' },
   ];
 
-  const brandLogos = ['RTVE', 'Tupperware', 'Pepsi', 'Marriott', 'HubSpot', 'Levis', 'Canva', 'Notion'];
-  const socialItems = ['Instagram', 'Facebook', 'X', 'TikTok', 'YouTube', 'Twitch'];
+  const brandLogos = ['Influencers', 'E-Commerce', 'Agencias', 'Pymes', 'Negocios', 'Comunidades', 'Marcas', 'Creadores'];
+  const socialItems = ['Instagram', 'Facebook', 'TikTok'];
   const steps = [
     {
-      title: 'Selecciona el post',
-      text: 'Pega el enlace del contenido y elige la app que mejor se adapta a tu sorteo.',
+      title: 'Crea tu sorteo',
+      text: 'Ingresa el nombre, fecha, hora y establece los participantes de tu sorteo.',
     },
     {
-      title: 'Aplica filtros y reglas',
-      text: 'Define condiciones, hashtags, comentarios validos o limites de participacion.',
+      title: 'Comparte el código',
+      text: 'Genera un código único que compartirás con tu comunidad para unirse.',
     },
     {
       title: 'Selecciona al ganador',
-      text: 'Haz el sorteo en segundos con una vista clara y profesional.',
+      text: 'Con un clic, la plataforma elige el ganador de forma aleatoria y transparente.',
     },
     {
-      title: 'Anuncia tus resultados',
-      text: 'Comparte la evidencia y genera confianza con una presentacion cuidada.',
+      title: 'Anuncia resultados',
+      text: 'Descarga el certificado del ganador y comparte con tu audiencia.',
     },
   ];
   const faqs = [
     {
-      question: 'Que es App Sorteos y como funciona?',
-      answer: 'Es una plataforma para organizar sorteos en redes sociales o con listas propias. Tomas tu fuente de participantes, aplicas reglas y eliges al ganador sin cambiar el flujo actual de tu app.',
+      question: '¿Qué es AppSorteos?',
+      answer: 'Es una plataforma online para crear sorteos justos, transparentes y profesionales. Perfecta para influencers, empresas y comunidades que quieren hacer dinámicas en redes sociales.',
     },
     {
-      question: 'Puedo crear un sorteo gratis?',
-      answer: 'La portada actual ya deja iniciar el proceso gratis desde el boton principal y mantener el acceso a registro o dashboard segun el estado del usuario.',
+      question: '¿Puedo crear un sorteo gratis?',
+      answer: 'Sí, completamente gratis. Solo necesitas registrarte, crear un sorteo y compartir el código con tu comunidad para que participen.',
     },
     {
-      question: 'Se modificaron mis funciones?',
-      answer: 'No. Se conserva la logica de autenticacion, logout, modal, router y acceso a dashboard o join. El trabajo aqui es visual.',
+      question: '¿Cuántos participantes puedo tener?',
+      answer: 'Sin límite. Puedes tener desde 10 hasta miles de participantes en un solo sorteo. La plataforma selecciona al ganador de forma aleatoria.',
     },
     {
-      question: 'Puedo personalizar el look despues?',
-      answer: 'Si. Esta base deja colores, tipografias y secciones listas para seguir afinando sin tocar la logica central.',
+      question: '¿Es seguro y transparente?',
+      answer: 'Totalmente. Todos los procesos se registran, puedes descargar certificados del sorteo y compartir los resultados con tu audiencia sin dudas.',
     },
   ];
 
@@ -258,10 +249,10 @@ export default function Home() {
 
         <section className="mx-auto max-w-7xl px-6 py-16 lg:py-20">
           <div className="mx-auto max-w-3xl text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.34em] text-[#ec2aa4]">Apps Destacadas</p>
-            <h2 className="mt-4 text-3xl font-bold text-slate-950 sm:text-4xl">Apps de sorteos mas usadas</h2>
+            <p className="text-sm font-semibold uppercase tracking-[0.34em] text-[#ec2aa4]">Plataformas Disponibles</p>
+            <h2 className="mt-4 text-3xl font-bold text-slate-950 sm:text-4xl">Sorteos en tus redes sociales favoritas</h2>
             <p className="mt-3 text-base text-slate-600">
-              Esta vista mantiene tus funciones actuales y reorganiza la experiencia para que se vea mas cercana a la referencia que compartiste.
+              Elige dónde quieres hacer tu sorteo y crea dinámicas profesionales en segundos.
             </p>
           </div>
 
@@ -312,12 +303,12 @@ export default function Home() {
         <section className="mx-auto max-w-7xl px-6 py-16">
           <div className="rounded-[2.25rem] border border-pink-100 bg-white px-6 py-10 shadow-[0_36px_90px_-54px_rgba(190,24,93,0.5)] lg:px-12">
             <div className="mx-auto max-w-3xl text-center">
-              <p className="text-sm font-semibold uppercase tracking-[0.34em] text-[#ec2aa4]">Estas en buenas manos</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.34em] text-[#ec2aa4]">Confía en AppSorteos</p>
               <h2 className="mt-4 text-3xl font-bold text-slate-950 sm:text-4xl">
-                Una presentacion mas limpia para que la plataforma transmita confianza
+                Usado por miles de creadores y empresas
               </h2>
               <p className="mt-4 text-slate-600">
-                Redisenamos la capa visual con una direccion mas editorial y comercial, sin alterar la base de funciones que ya tenias integrada.
+                Nuestros usuarios hacen sorteos transparentes, justos y profesionales todos los días.
               </p>
             </div>
 
@@ -336,9 +327,9 @@ export default function Home() {
 
         <section className="mx-auto grid max-w-7xl gap-14 px-6 py-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.34em] text-[#ec2aa4]">Como Funciona</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.34em] text-[#ec2aa4]">Fácil de Usar</p>
             <h2 className="mt-4 text-3xl font-bold text-slate-950 sm:text-4xl">
-              4 simples pasos para crear un sorteo exitoso
+              Crea tu primer sorteo en 4 pasos simples
             </h2>
             <div className="mt-8 space-y-4">
               {steps.map((step, index) => (
@@ -383,19 +374,19 @@ export default function Home() {
 
         <section className="mx-auto grid max-w-7xl gap-14 px-6 py-16 lg:grid-cols-2 lg:items-center">
           <div className="order-2 lg:order-1">
-            <p className="text-sm font-semibold uppercase tracking-[0.34em] text-[#ec2aa4]">User Generated</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.34em] text-[#ec2aa4]">Selección Transparente</p>
             <h2 className="mt-4 max-w-xl text-3xl font-bold text-slate-950 sm:text-4xl">
-              Selecciona un ganador al azar entre los comentarios que cumplan con la consigna
+              Elige ganadores de forma justa y aleatoria
             </h2>
             <p className="mt-4 max-w-xl text-slate-600">
-              La nueva portada comunica mejor el valor del producto y deja mas claro el beneficio principal sin alterar tus consultas ni eventos existentes.
+              Todos los sorteos son registrados, verificables y puedes compartir los resultados con tu comunidad sin ninguna duda.
             </p>
             <div className="mt-6 space-y-3 text-sm text-slate-600">
               {[
-                'Filtra comentarios por reglas o etiquetas',
-                'Detecta participaciones repetidas facilmente',
-                'Muestra una experiencia mas confiable y clara',
-                'Conserva el acceso actual a login y registro',
+                'Selección 100% aleatoria y transparente',
+                'Certificados descargables de cada sorteo',
+                'Historial completo de todos tus sorteos',
+                'Códigos únicos para compartir con tu comunidad',
               ].map((item) => (
                 <div key={item} className="flex items-center gap-3">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-pink-50 text-[11px] font-bold text-[#ec2aa4]">OK</span>
@@ -448,17 +439,17 @@ export default function Home() {
           </div>
 
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.34em] text-[#ec2aa4]">Transparencia</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.34em] text-[#ec2aa4]">Certificación</p>
             <h2 className="mt-4 max-w-xl text-3xl font-bold text-slate-950 sm:text-4xl">
-              Obten un certificado para compartir los ganadores de tu sorteo
+              Descarga certificados profesionales de tus sorteos
             </h2>
             <p className="mt-4 max-w-xl text-slate-600">
-              Sumamos bloques visuales mas fuertes para explicar beneficios como confianza, transparencia y facilidad de uso desde la primera pantalla.
+              Cada sorteo genera un certificado que puedes compartir, imprimir o publicar para comprobar la transparencia del proceso.
             </p>
             <div className="mt-6 space-y-3 text-sm text-slate-600">
-              <div className="flex items-center gap-3"><span className="text-[#ec2aa4]">-</span><span>Historia visual mas clara y ordenada</span></div>
-              <div className="flex items-center gap-3"><span className="text-[#ec2aa4]">-</span><span>Mayor sensacion de producto terminado</span></div>
-              <div className="flex items-center gap-3"><span className="text-[#ec2aa4]">-</span><span>Jerarquia parecida a la referencia que compartiste</span></div>
+              <div className="flex items-center gap-3"><span className="text-[#ec2aa4]">-</span><span>Certificado con fecha, hora y ganador</span></div>
+              <div className="flex items-center gap-3"><span className="text-[#ec2aa4]">-</span><span>Descargar como imagen o PDF</span></div>
+              <div className="flex items-center gap-3"><span className="text-[#ec2aa4]">-</span><span>Compartir en redes sociales en 1 clic</span></div>
             </div>
             <Button onClick={() => router.push('/join')} className="mt-8 px-7 py-4 text-sm">
               Prueba Gratis
@@ -505,30 +496,30 @@ export default function Home() {
                 </div>
                 <div>
                   <div className="text-lg font-bold text-slate-950">AppSorteos</div>
-                  <div className="text-sm text-slate-500">Una experiencia visual renovada para Supersorteo.</div>
+              <div className="text-sm text-slate-500">Plataforma profesional para sorteos en redes sociales.</div>
                 </div>
               </div>
               <p className="mt-5 max-w-sm text-sm leading-7 text-slate-500">
-                Esta nueva portada mantiene tu base funcional y mejora la percepcion general del producto con una direccion mas limpia, brillante y comercial.
+                Crea sorteos justos, transparentes y profesionales en Instagram, Facebook y TikTok. Elige ganadores con confianza.
               </p>
             </div>
 
             <div>
               <h3 className="text-sm font-bold uppercase tracking-[0.24em] text-slate-400">Producto</h3>
               <div className="mt-4 space-y-3 text-sm text-slate-600">
-                <div>Instagram</div>
-                <div>Facebook</div>
-                <div>TikTok</div>
-                <div>Ruleta</div>
+                <div>Crear sorteo</div>
+                <div>Unirse a sorteo</div>
+                <div>Mi dashboard</div>
+                <div>Certificados</div>
               </div>
             </div>
 
             <div>
               <h3 className="text-sm font-bold uppercase tracking-[0.24em] text-slate-400">Ayuda</h3>
               <div className="mt-4 space-y-3 text-sm text-slate-600">
-                <div>FAQ</div>
-                <div>Soporte</div>
-                <div>Guias</div>
+                <div>Preguntas Frecuentes</div>
+                <div>Centro de Ayuda</div>
+                <div>Blog</div>
                 <div>Contacto</div>
               </div>
             </div>
