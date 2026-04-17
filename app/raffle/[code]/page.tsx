@@ -47,7 +47,7 @@ export default function RafflePage() {
   const [raffle, setRaffle] = useState<RaffleDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState('');
-  const [, setClockTick] = useState(0);
+  const [clockTick, setClockTick] = useState(0);
   
   const [showWinnerAnimation, setShowWinnerAnimation] = useState(false);
   const [displayedWinner, setDisplayedWinner] = useState<RaffleParticipant | null>(null);
