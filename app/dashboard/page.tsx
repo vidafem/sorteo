@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createRaffle, getCurrentUser, getMyRaffles, type CreateRaffleInput, type RaffleSummary } from '@/lib/queries';
+import { createRaffle, getCurrentUser, getMyRaffles, deleteRaffle, type CreateRaffleInput, type RaffleSummary } from '@/lib/queries';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { motion } from 'framer-motion';
@@ -54,6 +54,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [deletingId, setDeletingId] = useState('');
   const [copyFeedback, setCopyFeedback] = useState('');
   const [error, setError] = useState('');
   const [formData, setFormData] = useState<CreateRaffleInput>({
@@ -136,6 +137,22 @@ export default function Dashboard() {
       setError(saveError?.message || 'No se pudo crear el sorteo.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteRaffle = async (id: string) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este sorteo? Esta acción no se puede deshacer y borrará todos los participantes.')) {
+      return;
+    }
+
+    setDeletingId(id);
+    try {
+      await deleteRaffle(id);
+      await loadDashboard();
+    } catch (deleteError: any) {
+      setError(deleteError?.message || 'No se pudo eliminar el sorteo.');
+    } finally {
+      setDeletingId('');
     }
   };
 
@@ -380,6 +397,13 @@ export default function Dashboard() {
                         className="rounded-full border border-pink-100 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-pink-50"
                       >
                         Compartir codigo
+                      </button>
+                      <button
+                        onClick={() => handleDeleteRaffle(raffle.id)}
+                        disabled={deletingId === raffle.id}
+                        className="rounded-full border border-rose-100 bg-white px-5 py-3 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-50"
+                      >
+                        {deletingId === raffle.id ? 'Eliminando...' : 'Eliminar'}
                       </button>
                     </div>
                   </Card>
