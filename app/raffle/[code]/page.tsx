@@ -750,6 +750,7 @@ export default function RafflePage() {
             </motion.div>
           )}
 
+          <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
             <Card className="rounded-[2rem] p-6">
               <div className="flex items-center justify-between gap-4">
                 <div>
