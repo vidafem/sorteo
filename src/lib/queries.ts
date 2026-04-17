@@ -53,6 +53,7 @@ export interface RaffleDetail extends RaffleSummary {
   participants: RaffleParticipant[];
   staffAccess: RaffleStaffAccess | null;
   isStaff: boolean;
+  isAdmin: boolean;
 }
 
 export interface CreateRaffleInput {
@@ -323,11 +324,25 @@ export const getRaffleByCode = async (code: string): Promise<RaffleDetail | null
   const participants = await getRaffleParticipants(raffle.id);
   const staffAccess = await getRaffleStaffAccess(raffle.id);
 
+  let isAdmin = false;
+  const user = await getCurrentUser();
+  if (user) {
+    const { data: profile } = await client
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profile?.role === "admin") {
+      isAdmin = true;
+    }
+  }
+
   return {
     ...mapRaffleSummary(raffle, participants.length),
     participants,
     staffAccess,
     isStaff: Boolean(staffAccess),
+    isAdmin,
   };
 };
 
