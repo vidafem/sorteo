@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -10,9 +10,7 @@ import { useWindowSize } from 'react-use';
 import { supabase } from '@/lib/supabaseClient';
 import {
   eliminateParticipantFromRaffle,
-  getCurrentUser,
   getRaffleByCode,
-  joinRaffle,
   selectWinnerForRaffle,
   type RaffleDetail,
   type RaffleParticipant,
@@ -31,12 +29,13 @@ const getCountdownText = (drawAt: string | null) => {
   const days = Math.floor(difference / (1000 * 60 * 60 * 24));
   const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
   const minutes = Math.floor((difference / (1000 * 60)) % 60);
+  const seconds = Math.floor((difference / 1000) % 60);
 
   if (days > 0) {
-    return `${days}d ${hours}h ${minutes}m`;
+    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
   }
 
-  return `${hours}h ${minutes}m`;
+  return `${hours}h ${minutes}m ${seconds}s`;
 };
 
 const formatDrawDate = (drawAt: string | null) => {
@@ -50,17 +49,14 @@ const formatDrawDate = (drawAt: string | null) => {
   });
 };
 
-const getNextAvailableNumber = (participants: RaffleParticipant[], maxParticipants: number | null) => {
-  const usedNumbers = new Set(participants.map((participant) => participant.assignedNumber));
-  const limit = maxParticipants && maxParticipants > 0 ? Math.max(maxParticipants, participants.length + 1) : 999;
-
-  for (let current = 1; current <= limit; current += 1) {
-    if (!usedNumbers.has(current)) {
-      return current;
-    }
+const getStatusLabel = (status: string) => {
+  switch (status) {
+    case 'active': return 'Activo';
+    case 'scheduled': return 'Programado';
+    case 'closed': return 'Cerrado';
+    case 'cancelled': return 'Cancelado';
+    default: return 'Borrador';
   }
-
-  return null;
 };
 
 export default function RafflePage() {
@@ -70,14 +66,8 @@ export default function RafflePage() {
   const code = String(params.code || '');
 
   const [raffle, setRaffle] = useState<RaffleDetail | null>(null);
-  const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [joining, setJoining] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState('');
-  const [joinName, setJoinName] = useState('');
-  const [joinNumber, setJoinNumber] = useState('');
-  const [joinMessage, setJoinMessage] = useState('');
-  const [joinError, setJoinError] = useState('');
   const [, setClockTick] = useState(0);
   
   const [showWinnerAnimation, setShowWinnerAnimation] = useState(false);
@@ -87,13 +77,10 @@ export default function RafflePage() {
   const [animationStyle, setAnimationStyle] = useState<'roulette' | 'cards' | 'number'>('cards');
   const [rouletteParticipant, setRouletteParticipant] = useState<RaffleParticipant | null>(null);
 
-  const loadRaffle = useCallback(async () => {
-    const [raffleData, user] = await Promise.all([
-      getRaffleByCode(code),
-      getCurrentUser(),
-    ]);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
-    setCurrentUser(user);
+  const loadRaffle = useCallback(async () => {
+    const raffleData = await getRaffleByCode(code);
     setRaffle(raffleData);
   }, [code]);
 
@@ -110,20 +97,63 @@ export default function RafflePage() {
   }, [loadRaffle]);
 
   useEffect(() => {
-    if (!raffle) {
-      return;
-    }
-
-    const suggestedNumber = getNextAvailableNumber(raffle.participants, raffle.maxParticipants);
-    setJoinNumber(suggestedNumber ? String(suggestedNumber) : '');
-  }, [raffle]);
-
-  useEffect(() => {
     const intervalId = window.setInterval(() => {
       setClockTick((value) => value + 1);
-    }, 60000);
+    }, 1000);
 
     return () => window.clearInterval(intervalId);
+  }, []);
+
+  // Generador de sonido "Tic" de ruleta usando Web Audio API
+  const playTick = useCallback(() => {
+    try {
+      if (!audioCtxRef.current) {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        audioCtxRef.current = new AudioContextClass();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') void ctx.resume();
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(800, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.05);
+      
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+      
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.05);
+    } catch (e) { /* Silencioso si el navegador bloquea el audio */ }
+  }, []);
+
+  // Generador de acorde de victoria
+  const playWinSound = useCallback(() => {
+    try {
+      if (!audioCtxRef.current) return;
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') void ctx.resume();
+
+      [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.1);
+        gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + i * 0.1 + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.1 + 1.5);
+        osc.start(ctx.currentTime + i * 0.1);
+        osc.stop(ctx.currentTime + i * 0.1 + 1.5);
+      });
+    } catch (e) { /* Silencioso si el navegador bloquea el audio */ }
   }, []);
 
   // Suscripción a cambios en Tiempo Real
@@ -203,6 +233,7 @@ export default function RafflePage() {
       const randomIndex = Math.floor(Math.random() * pool.length);
       
       setRouletteParticipant(pool[randomIndex]);
+      playTick();
 
       // Efecto de frenado: inicia en 100ms y va subiendo exponencialmente hasta ~700ms
       const progress = elapsed / duration;
@@ -214,7 +245,7 @@ export default function RafflePage() {
     timeoutId = window.setTimeout(tick, 100);
 
     return () => window.clearTimeout(timeoutId);
-  }, [showWinnerAnimation, activeParticipants, actualWinner]);
+  }, [showWinnerAnimation, activeParticipants, actualWinner, playTick]);
 
   // Mini-animación de nombres para la Sala de Espera
   useEffect(() => {
@@ -225,54 +256,8 @@ export default function RafflePage() {
     return () => clearInterval(interval);
   }, [activeParticipants.length]);
 
-  const canManage = Boolean(
-    raffle?.staffAccess?.canManageRaffle ||
-    raffle?.staffAccess?.canPickWinner ||
-    raffle?.staffAccess?.canEliminateParticipants,
-  );
   const canPickWinner = Boolean(raffle?.staffAccess?.canManageRaffle || raffle?.staffAccess?.canPickWinner);
   const canEliminate = Boolean(raffle?.staffAccess?.canManageRaffle || raffle?.staffAccess?.canEliminateParticipants);
-  const suggestedNumber = raffle ? getNextAvailableNumber(raffle.participants, raffle.maxParticipants) : null;
-  const joinDisabled = !raffle?.allowPublicJoin || raffle?.status === 'closed' || suggestedNumber === null;
-
-  const handleJoin = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!raffle) {
-      return;
-    }
-
-    if (!joinName.trim()) {
-      setJoinError('Escribe tu nombre antes de unirte.');
-      return;
-    }
-
-    const parsedNumber = Number(joinNumber);
-    if (!Number.isInteger(parsedNumber) || parsedNumber <= 0) {
-      setJoinError('Ingresa un numero valido para participar.');
-      return;
-    }
-
-    if (occupiedNumbers.includes(parsedNumber)) {
-      setJoinError('Ese numero ya esta ocupado. Elige otro libre.');
-      return;
-    }
-
-    setJoining(true);
-    setJoinError('');
-    setJoinMessage('');
-
-    try {
-      await joinRaffle(raffle.id, joinName.trim(), parsedNumber);
-      await loadRaffle();
-      setJoinName('');
-      setJoinMessage(`Te uniste correctamente con el numero #${String(parsedNumber).padStart(3, '0')}.`);
-    } catch (error: any) {
-      setJoinError(error?.message || 'No fue posible registrarte en este sorteo.');
-    } finally {
-      setJoining(false);
-    }
-  };
 
   const handleSelectWinner = async (participantId: string) => {
     if (!raffle) {
@@ -449,7 +434,7 @@ export default function RafflePage() {
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-[1.2rem] bg-white px-4 py-3">
                       <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Estado</p>
-                      <p className="mt-2 text-sm font-semibold text-slate-900">{raffle.status}</p>
+                      <p className="mt-2 text-sm font-semibold text-slate-900">{getStatusLabel(raffle.status)}</p>
                     </div>
                     <div className="rounded-[1.2rem] bg-white px-4 py-3">
                       <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Maximo</p>
@@ -567,65 +552,6 @@ export default function RafflePage() {
         <div className="space-y-8">
           <motion.div initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }}>
             <Card className="rounded-[2rem] p-6">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#ec2aa4]">Ingresar al sorteo</p>
-              <h2 className="mt-2 text-2xl font-bold text-slate-950">Reserva tu numero</h2>
-              <p className="mt-3 text-sm leading-7 text-slate-500">
-                Completa tu nombre y el numero que deseas. Los numeros ocupados se muestran abajo para evitar duplicados.
-              </p>
-
-              {joinDisabled ? (
-                <div className="mt-5 rounded-[1.4rem] bg-[#fff7fb] px-4 py-4 text-sm text-slate-600">
-                  Este sorteo no esta disponible para nuevos ingresos en este momento.
-                </div>
-              ) : (
-                <form onSubmit={handleJoin} className="mt-5 space-y-4">
-                  <label className="block text-sm font-medium text-slate-700">
-                    Nombre del participante
-                    <input
-                      type="text"
-                      value={joinName}
-                      onChange={(event) => setJoinName(event.target.value)}
-                      className="mt-2 w-full rounded-2xl border border-pink-100 bg-[#fff9fc] px-4 py-3 outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100"
-                      placeholder="Tu nombre completo"
-                      required
-                    />
-                  </label>
-
-                  <label className="block text-sm font-medium text-slate-700">
-                    Numero a ocupar
-                    <input
-                      type="number"
-                      min="1"
-                      value={joinNumber}
-                      onChange={(event) => setJoinNumber(event.target.value)}
-                      className="mt-2 w-full rounded-2xl border border-pink-100 bg-[#fff9fc] px-4 py-3 outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100"
-                      placeholder={suggestedNumber ? `Sugerido: ${suggestedNumber}` : 'Sin cupos'}
-                      required
-                    />
-                  </label>
-
-                  {joinError && (
-                    <div className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                      {joinError}
-                    </div>
-                  )}
-
-                  {joinMessage && (
-                    <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                      {joinMessage}
-                    </div>
-                  )}
-
-                  <Button type="submit" disabled={joining} className="w-full px-6 py-4 text-base">
-                    {joining ? 'Guardando participacion...' : 'Unirme al sorteo'}
-                  </Button>
-                </form>
-              )}
-            </Card>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.08 }}>
-            <Card className="rounded-[2rem] p-6">
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#ec2aa4]">Numeros ocupados</p>
               <h2 className="mt-2 text-2xl font-bold text-slate-950">Vista rapida de ocupacion</h2>
 
@@ -657,20 +583,6 @@ export default function RafflePage() {
                   ))
                 )}
               </div>
-            </Card>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.16 }}>
-            <Card className="rounded-[2rem] p-6">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#ec2aa4]">Acceso interno</p>
-              <h2 className="mt-2 text-2xl font-bold text-slate-950">Controles del equipo</h2>
-              <p className="mt-3 text-sm leading-7 text-slate-500">
-                {canManage
-                  ? `Estas viendo controles de staff como ${raffle.staffAccess?.role}. Puedes elegir ganadores o eliminar participantes segun tus permisos.`
-                  : currentUser
-                    ? 'Tienes sesion iniciada, pero no perteneces al staff de este sorteo.'
-                    : 'Inicia sesion con un usuario de staff para ver los controles internos del sorteo.'}
-              </p>
             </Card>
           </motion.div>
         </div>
