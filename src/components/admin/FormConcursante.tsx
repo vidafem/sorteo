@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { crearConcursante } from "@/src/lib/queries";
+import { crearConcursante } from "@/lib/queries";
 
 interface FormConcursanteProps {
   onConcursanteAdded: () => void;

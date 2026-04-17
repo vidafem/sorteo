@@ -1,6 +1,6 @@
 "use client";
 
-import type { Concursante } from "@/src/lib/queries";
+import type { Concursante } from "@/lib/queries";
 
 export default function ListaConcursantes({
   concursantes,
