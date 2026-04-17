@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { motion } from 'framer-motion';
+import { getRaffleByCode } from '@/lib/queries';
 
 export default function JoinRaffle() {
   const [code, setCode] = useState('');
@@ -12,10 +13,11 @@ export default function JoinRaffle() {
   const [error, setError] = useState('');
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
     if (!code.trim()) {
-      setError('Por favor ingresa un código válido');
+      setError('Por favor ingresa un codigo valido.');
       return;
     }
 
@@ -23,70 +25,75 @@ export default function JoinRaffle() {
     setError('');
 
     try {
-      // Aquí irá la lógica para verificar el código del sorteo
-      // Por ahora, redirigimos a una página de sorteo de ejemplo
-      router.push(`/raffle/${code.toUpperCase()}`);
-    } catch (err: any) {
-      setError('Código de sorteo no encontrado o inválido');
+      const raffle = await getRaffleByCode(code);
+
+      if (!raffle) {
+        setError('Codigo de sorteo no encontrado o no disponible.');
+        return;
+      }
+
+      router.push(`/raffle/${raffle.raffleCode}`);
+    } catch (joinError: any) {
+      setError(joinError?.message || 'No se pudo validar el codigo del sorteo.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-900 flex items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center px-4 py-10">
       <motion.div
-        initial={{ opacity: 0, y: 50 }}
+        initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
+        className="w-full max-w-xl"
       >
-        <Card className="p-8 bg-white/95 backdrop-blur-sm">
-          <div className="text-center mb-8">
-            <div className="text-6xl mb-4">🎫</div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Unirse a Sorteo</h1>
-            <p className="text-gray-600">Ingresa el código del sorteo para participar</p>
+        <Card className="rounded-[2rem] p-8 sm:p-10">
+          <div className="text-center">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-pink-50 text-lg font-bold uppercase tracking-[0.2em] text-[#ec2aa4]">
+              Join
+            </div>
+            <p className="mt-6 text-sm font-semibold uppercase tracking-[0.32em] text-[#ec2aa4]">Ingresar al sorteo</p>
+            <h1 className="mt-3 text-3xl font-bold text-slate-950 sm:text-4xl">Escribe tu codigo y entra en segundos</h1>
+            <p className="mt-3 text-sm leading-7 text-slate-500 sm:text-base">
+              Si el codigo existe, te llevaremos directamente a la pantalla del sorteo con los numeros ocupados, el contador y la lista de participantes.
+            </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Código del Sorteo
-              </label>
+          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+            <label className="block text-sm font-medium text-slate-700">
+              Codigo del sorteo
               <input
                 type="text"
                 value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder="Ej: ABC123"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-2xl font-mono tracking-wider"
-                maxLength={6}
+                onChange={(event) => setCode(event.target.value.toUpperCase())}
+                placeholder="Ej: 8A3F2B1C"
+                className="mt-2 w-full rounded-[1.6rem] border border-pink-100 bg-[#fff9fc] px-5 py-4 text-center text-2xl font-bold tracking-[0.32em] text-slate-900 outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100"
+                maxLength={8}
                 required
               />
-              <p className="text-xs text-gray-500 mt-1 text-center">
-                El código tiene 6 caracteres alfanuméricos
-              </p>
-            </div>
+            </label>
+
+            <p className="rounded-[1.4rem] bg-[#fff7fb] px-4 py-3 text-xs leading-6 text-slate-500 sm:text-sm">
+              El codigo se genera automaticamente cuando el creador registra el sorteo desde su dashboard.
+            </p>
 
             {error && (
-              <div className="text-red-600 text-sm text-center bg-red-50 p-3 rounded-lg">
+              <div className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
                 {error}
               </div>
             )}
 
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white py-3 text-lg"
-            >
-              {loading ? 'Verificando...' : 'Unirse al Sorteo'}
+            <Button type="submit" disabled={loading} className="w-full px-6 py-4 text-base">
+              {loading ? 'Validando codigo...' : 'Entrar al sorteo'}
             </Button>
           </form>
 
           <div className="mt-6 text-center">
             <button
               onClick={() => router.push('/')}
-              className="text-blue-600 hover:text-blue-800 text-sm"
+              className="text-sm font-semibold text-slate-500 transition hover:text-[#ec2aa4]"
             >
-              ← Volver al inicio
+              Volver al inicio
             </button>
           </div>
         </Card>

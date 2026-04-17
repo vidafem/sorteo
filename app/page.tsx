@@ -133,6 +133,17 @@ export default function Home() {
     setFormData({ email: '', password: '', nombre: '' });
   };
 
+  const handleHeroJoin = () => {
+    const normalizedCode = searchQuery.trim().toUpperCase();
+
+    if (!normalizedCode) {
+      router.push('/join');
+      return;
+    }
+
+    router.push(`/raffle/${normalizedCode}`);
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#fff7fb]">
@@ -227,7 +238,7 @@ export default function Home() {
                   className="h-14 flex-1 rounded-[1.2rem] border-0 bg-transparent px-5 text-base text-slate-900 outline-none placeholder:text-slate-400"
                 />
                 <Button
-                  onClick={() => (user ? router.push('/dashboard') : openModal('register'))}
+                  onClick={handleHeroJoin}
                   className="h-14 min-w-[10rem] rounded-[1.2rem] px-6 py-3 text-sm"
                 >
                   Ingresar
@@ -237,6 +248,7 @@ export default function Home() {
               <div className="flex justify-center">
                 <button
                   type="button"
+                  onClick={() => (user ? router.push('/dashboard') : openModal('login'))}
                   className="rounded-full border border-white/25 bg-white/10 px-5 py-2 text-sm font-semibold text-white/95 backdrop-blur-sm"
                 >
                   Crear nuevo sorteo
