@@ -378,20 +378,11 @@ export const joinRaffle = async (
   const client = getClient();
   const user = await getCurrentUser();
 
-  const payload: {
-    raffle_id: string;
-    display_name: string;
-    assigned_number: number;
-    joined_by_user_id?: string;
-  } = {
+  const payload: any = {
     raffle_id: raffleId,
     display_name: displayName.trim(),
     assigned_number: assignedNumber,
   };
-
-  if (user) {
-    payload.joined_by_user_id = user.id;
-  }
 
   const { data, error } = await client
     .from("raffle_participants")

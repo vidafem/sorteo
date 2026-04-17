@@ -55,6 +55,7 @@ export default function RafflePage() {
   const [currentAnimatedNameIndex, setCurrentAnimatedNameIndex] = useState(0);
   const [animationStyle, setAnimationStyle] = useState<'roulette' | 'cards' | 'number'>('cards');
   const [rouletteParticipant, setRouletteParticipant] = useState<RaffleParticipant | null>(null);
+  const [previewParticipant, setPreviewParticipant] = useState<RaffleParticipant | null>(null);
 
   // Estado para el formulario manual
   const [addName, setAddName] = useState('');
@@ -262,14 +263,24 @@ export default function RafflePage() {
     return () => clearInterval(interval);
   }, [activeParticipants.length]);
 
+  // Animación continua para la Vista Previa
+  useEffect(() => {
+    if (activeParticipants.length === 0) return;
+    const interval = setInterval(() => {
+      const randomIndex = Math.floor(Math.random() * activeParticipants.length);
+      setPreviewParticipant(activeParticipants[randomIndex]);
+    }, 200); // Velocidad constante
+    return () => clearInterval(interval);
+  }, [activeParticipants]);
+
   // Utilidad para la animación de las tarjetas (Slot Machine)
-  const getParticipantOffset = useCallback((offset: number) => {
+  const getParticipantOffset = useCallback((offset: number, target: RaffleParticipant | null) => {
     if (!activeParticipants || activeParticipants.length === 0) return null;
-    const currentIndex = activeParticipants.findIndex(p => p.id === rouletteParticipant?.id);
+    const currentIndex = activeParticipants.findIndex(p => p.id === target?.id);
     const safeIndex = currentIndex !== -1 ? currentIndex : 0;
     const idx = (safeIndex + offset + activeParticipants.length * 10) % activeParticipants.length;
     return activeParticipants[idx];
-  }, [activeParticipants, rouletteParticipant]);
+  }, [activeParticipants]);
 
   const canPickWinner = Boolean(raffle?.staffAccess?.canManageRaffle || raffle?.staffAccess?.canPickWinner);
   const canEliminate = Boolean(raffle?.staffAccess?.canManageRaffle || raffle?.staffAccess?.canEliminateParticipants);
@@ -434,7 +445,7 @@ export default function RafflePage() {
 
                       <div className="flex w-full flex-col items-center gap-3">
                         {[-2, -1, 0, 1, 2].map((offset) => {
-                          const p = getParticipantOffset(offset);
+                          const p = getParticipantOffset(offset, rouletteParticipant);
                           const isCenter = offset === 0;
                           return (
                             <div key={offset} className={`flex w-11/12 items-center justify-center px-4 transition-all duration-[80ms] ease-linear ${isCenter ? 'z-20 scale-110 rounded-[1.2rem] bg-[#782381] py-5 text-white shadow-xl' : 'scale-95 py-2 text-slate-400 opacity-40'}`}>
@@ -586,6 +597,41 @@ export default function RafflePage() {
                     </button>
                   ))}
                 </div>
+              </div>
+              
+              <div className="mt-5 flex h-36 w-full items-center justify-center rounded-2xl bg-slate-950 overflow-hidden relative shadow-inner">
+                <div className="absolute top-4 left-5 flex items-center gap-2">
+                  <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span></span>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Vista Previa</p>
+                </div>
+                
+                {animationStyle === 'roulette' && (
+                  <div className="text-3xl font-extrabold text-white truncate px-4">
+                    {previewParticipant?.displayName || 'Nombre de Ejemplo'}
+                  </div>
+                )}
+                {animationStyle === 'cards' && (
+                  <div className="relative flex h-28 w-56 flex-col items-center justify-center overflow-hidden rounded-[1.2rem] bg-white shadow-lg">
+                    <div className="pointer-events-none absolute left-0 top-0 z-10 h-8 w-full bg-gradient-to-b from-white via-white/80 to-transparent"></div>
+                    <div className="pointer-events-none absolute bottom-0 left-0 z-10 h-8 w-full bg-gradient-to-t from-white via-white/80 to-transparent"></div>
+                    <div className="flex w-full flex-col items-center gap-2">
+                      {[-1, 0, 1].map((offset) => {
+                        const p = getParticipantOffset(offset, previewParticipant);
+                        const isCenter = offset === 0;
+                        return (
+                          <div key={offset} className={`flex w-11/12 items-center justify-center px-2 transition-all duration-[100ms] ease-linear ${isCenter ? 'z-20 scale-105 rounded-lg bg-[#782381] py-2 text-white shadow-md' : 'scale-90 py-1 text-slate-400 opacity-40'}`}>
+                            <span className={`truncate font-bold ${isCenter ? 'text-lg' : 'text-sm'}`}>{p?.displayName || 'Ejemplo'}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {animationStyle === 'number' && (
+                  <div className="text-6xl font-black text-white tracking-tighter">
+                    {String(previewParticipant?.assignedNumber || 99).padStart(3, '0')}
+                  </div>
+                )}
               </div>
             </div>
 
