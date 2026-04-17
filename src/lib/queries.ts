@@ -8,17 +8,20 @@ export interface Concursante {
 }
 
 export const getConcursantes = async (): Promise<Concursante[]> => {
+  if (!supabase) throw new Error("Supabase no está configurado");
   const { data, error } = await supabase.from("concursantes").select("*");
   if (error) throw error;
   return data as Concursante[];
 };
 
 export const crearConcursante = async (nuevo: Omit<Concursante, "id">) => {
+  if (!supabase) throw new Error("Supabase no está configurado");
   const { error } = await supabase.from("concursantes").insert([nuevo]);
   if (error) throw error;
 };
 
 export const getGanador = async (): Promise<Concursante | null> => {
+  if (!supabase) throw new Error("Supabase no está configurado");
   const { data, error } = await supabase
     .from("concursantes")
     .select("*")
