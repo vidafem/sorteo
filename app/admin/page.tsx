@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback } from "react";
 import FormConcursante from "@/src/components/admin/FormConcursante";
 import ListaConcursantes from "@/src/components/admin/ListaConcursantes";

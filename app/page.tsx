@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useRef } from "react";
 import { getGanador } from "@/src/lib/queries";
 import NumberDisplay from "@/src/components/sorteo/NumberDisplay";
