@@ -382,18 +382,24 @@ export const joinRaffle = async (
     raffle_id: raffleId,
     display_name: displayName.trim(),
     assigned_number: assignedNumber,
+    status: "active",
   };
+
+  if (user) {
+    payload.joined_by_user_id = user.id;
+  }
 
   const { data, error } = await client
     .from("raffle_participants")
-    .insert(payload)
+    .insert([payload])
     .select("*")
     .single();
 
   if (error) {
-    throw error;
+    throw new Error(`DB Error: ${error.message} ${error.details || ''}`);
   }
 
+  try {
   await client.from("raffle_events").insert({
     raffle_id: raffleId,
     participant_id: (data as RawParticipant).id,
@@ -404,6 +410,9 @@ export const joinRaffle = async (
       assigned_number: assignedNumber,
     },
   });
+  } catch (eventError) {
+    console.warn("No se pudo guardar el evento en la base de datos:", eventError);
+  }
 
   return mapParticipant(data as RawParticipant);
 };

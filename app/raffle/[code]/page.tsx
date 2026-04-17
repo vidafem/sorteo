@@ -265,21 +265,34 @@ export default function RafflePage() {
 
   // Animación continua para la Vista Previa
   useEffect(() => {
-    if (activeParticipants.length === 0) return;
+    const listToUse = activeParticipants.length > 0 ? activeParticipants : [
+      { id: 'd1', displayName: 'Ana P.', assignedNumber: 12 },
+      { id: 'd2', displayName: 'Carlos M.', assignedNumber: 45 },
+      { id: 'd3', displayName: 'Lucia G.', assignedNumber: 7 },
+      { id: 'd4', displayName: 'Pedro S.', assignedNumber: 89 },
+      { id: 'd5', displayName: 'Maria L.', assignedNumber: 23 }
+    ] as any[];
+
     const interval = setInterval(() => {
-      const randomIndex = Math.floor(Math.random() * activeParticipants.length);
-      setPreviewParticipant(activeParticipants[randomIndex]);
+      const randomIndex = Math.floor(Math.random() * listToUse.length);
+      setPreviewParticipant(listToUse[randomIndex]);
     }, 200); // Velocidad constante
     return () => clearInterval(interval);
   }, [activeParticipants]);
 
   // Utilidad para la animación de las tarjetas (Slot Machine)
   const getParticipantOffset = useCallback((offset: number, target: RaffleParticipant | null) => {
-    if (!activeParticipants || activeParticipants.length === 0) return null;
-    const currentIndex = activeParticipants.findIndex(p => p.id === target?.id);
+    const listToUse = activeParticipants.length > 0 ? activeParticipants : [
+      { id: 'd1', displayName: 'Ana P.', assignedNumber: 12 },
+      { id: 'd2', displayName: 'Carlos M.', assignedNumber: 45 },
+      { id: 'd3', displayName: 'Lucia G.', assignedNumber: 7 },
+      { id: 'd4', displayName: 'Pedro S.', assignedNumber: 89 },
+      { id: 'd5', displayName: 'Maria L.', assignedNumber: 23 }
+    ] as any[];
+    const currentIndex = listToUse.findIndex(p => p.id === target?.id);
     const safeIndex = currentIndex !== -1 ? currentIndex : 0;
-    const idx = (safeIndex + offset + activeParticipants.length * 10) % activeParticipants.length;
-    return activeParticipants[idx];
+    const idx = (safeIndex + offset + listToUse.length * 10) % listToUse.length;
+    return listToUse[idx];
   }, [activeParticipants]);
 
   const canPickWinner = Boolean(raffle?.staffAccess?.canManageRaffle || raffle?.staffAccess?.canPickWinner);
