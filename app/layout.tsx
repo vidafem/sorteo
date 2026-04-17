@@ -1,14 +1,20 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { DM_Sans, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
+const dmSans = DM_Sans({
   subsets: ["latin"],
+  variable: "--font-body",
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-display",
 });
 
 export const metadata: Metadata = {
   title: "Supersorteo",
-  description: "Landing page de Supersorteo con diseño moderno para sorteos.",
+  description: "Landing page de Supersorteo con diseno moderno para sorteos.",
 };
 
 export default function RootLayout({
@@ -19,9 +25,9 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${inter.className} h-full antialiased bg-black`}
+      className={`${dmSans.variable} ${spaceGrotesk.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-gradient-to-br from-black via-gray-900 to-red-900">
+      <body className="min-h-full flex flex-col bg-[var(--page-bg)] text-slate-950">
         {children}
       </body>
     </html>

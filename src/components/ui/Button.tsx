@@ -8,7 +8,7 @@ export default function Button({ children, className = "", ...props }: ButtonPro
   return (
     <button
       {...props}
-      className={`px-8 py-4 bg-gradient-to-r from-red-600 to-yellow-600 hover:from-red-700 hover:to-yellow-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed rounded-2xl text-white font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 disabled:hover:scale-100 transition-all duration-200 border-2 border-yellow-400/50 ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ec2aa4] via-[#f43f93] to-[#ff6c8d] px-6 py-3 font-semibold text-white shadow-[0_24px_60px_-24px_rgba(236,42,164,0.75)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_28px_70px_-26px_rgba(236,42,164,0.8)] disabled:cursor-not-allowed disabled:opacity-70 ${className}`}
     >
       {children}
     </button>

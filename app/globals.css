@@ -3,19 +3,70 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  font-family: var(--font-body), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #fff7fb;
+  color: #0f172a;
+  --page-bg: #fff7fb;
+  --surface: rgba(255, 255, 255, 0.92);
+  --surface-strong: #ffffff;
+  --border: rgba(244, 114, 182, 0.16);
+  --accent: #ec2aa4;
+  --accent-strong: #d61f96;
+  --accent-soft: #fff0f8;
+  --ink: #0f172a;
+  --muted: #64748b;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(255, 121, 198, 0.18), transparent 24%),
+    radial-gradient(circle at 82% 16%, rgba(252, 214, 233, 0.72), transparent 22%),
+    linear-gradient(180deg, #fff4fb 0%, #fffdfd 42%, #fff7fb 100%);
+  color: var(--ink);
+  font-family: inherit;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display), var(--font-body), sans-serif;
+  letter-spacing: -0.03em;
+}
+
+input,
+textarea,
+select {
+  color: #0f172a;
+}
+
+::selection {
+  background: rgba(236, 72, 153, 0.32);
+  color: #fff;
 }
