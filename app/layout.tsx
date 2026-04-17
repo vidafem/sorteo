@@ -18,10 +18,12 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={`${inter.className} h-full antialiased`}
+      lang="es"
+      className={`${inter.className} h-full antialiased bg-black`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col bg-gradient-to-br from-black via-gray-900 to-red-900">
+        {children}
+      </body>
     </html>
   );
 }

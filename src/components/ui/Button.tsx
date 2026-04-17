@@ -8,7 +8,7 @@ export default function Button({ children, className = "", ...props }: ButtonPro
   return (
     <button
       {...props}
-      className={`px-6 py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-500 disabled:cursor-not-allowed rounded-xl text-white transition-colors ${className}`}
+      className={`px-8 py-4 bg-gradient-to-r from-red-600 to-yellow-600 hover:from-red-700 hover:to-yellow-700 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed rounded-2xl text-white font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 disabled:hover:scale-100 transition-all duration-200 border-2 border-yellow-400/50 ${className}`}
     >
       {children}
     </button>

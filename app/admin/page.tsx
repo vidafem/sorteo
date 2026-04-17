@@ -23,13 +23,44 @@ export default function Admin() {
   fetchData();
 }, []);
   return (
-    <div className="p-10">
-      <h1 className="text-2xl mb-5">Panel Admin</h1>
+    <main className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-red-900 text-white p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <header className="text-center mb-12">
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-yellow-400 via-red-500 to-pink-500 bg-clip-text text-transparent mb-4">
+            🎯 PANEL DE ADMINISTRACIÓN
+          </h1>
+          <p className="text-xl text-gray-300">
+            Gestiona los participantes del sorteo
+          </p>
+        </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-        <FormConcursante onConcursanteAdded={fetchConcursantes} />
-        <ListaConcursantes concursantes={concursantes} />
+        {/* Contenido */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="bg-black/50 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-red-500/20">
+            <h2 className="text-2xl font-semibold text-yellow-400 mb-6 text-center">
+              ➕ Agregar Participante
+            </h2>
+            <FormConcursante onConcursanteAdded={fetchConcursantes} />
+          </div>
+
+          <div className="bg-black/50 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-red-500/20">
+            <h2 className="text-2xl font-semibold text-yellow-400 mb-6 text-center">
+              📋 Lista de Participantes
+            </h2>
+            <ListaConcursantes concursantes={concursantes} />
+          </div>
+        </div>
+
+        {/* Estadísticas */}
+        <div className="mt-12 text-center">
+          <div className="bg-black/30 backdrop-blur-sm rounded-2xl p-6 inline-block">
+            <p className="text-lg text-gray-300">
+              Total de participantes: <span className="text-yellow-400 font-bold text-2xl">{concursantes.length}</span>
+            </p>
+          </div>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }
