@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getCurrentUser, logout, login, register } from '@/lib/queries';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import PlatformAnimator from '@/components/PlatformAnimator';
 import { motion } from 'framer-motion';
 
 export default function Home() {
@@ -215,18 +216,7 @@ export default function Home() {
       <main className="relative z-10">
         <section className="bg-[#ef269f] text-white">
           <div className="mx-auto flex max-w-7xl flex-col gap-10 px-6 py-16 text-center lg:py-20">
-            <div className="mx-auto inline-flex items-center gap-2 rounded-full bg-white/14 px-4 py-2 text-sm backdrop-blur-sm">
-              <span className="h-2 w-2 rounded-full bg-white" />
-              Plataforma de sorteos con apariencia comercial y moderna
-            </div>
-            <div className="space-y-4">
-              <h1 className="mx-auto max-w-4xl text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
-                Sorteo en Instagram
-              </h1>
-              <p className="mx-auto max-w-2xl text-base text-white/88 sm:text-lg">
-                Obten un comentario ganador al azar de tus fotos y videos de Instagram, con una portada mucho mas clara, confiable y atractiva.
-              </p>
-            </div>
+            <PlatformAnimator />
 
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
               <div className="flex flex-col overflow-hidden rounded-[1.65rem] border border-white/30 bg-white p-2 shadow-[0_28px_80px_-34px_rgba(122,16,84,0.7)] sm:flex-row">
