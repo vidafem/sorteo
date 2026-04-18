@@ -203,10 +203,6 @@ export default function RafflePage() {
     [raffle],
   );
 
-  useEffect(() => {
-    activeParticipantsRef.current = activeParticipants;
-  }, [activeParticipants]);
-
   // Lógica de la Ruleta y Revelación del Ganador (Secuencial 3, 2, 1)
   const [drawingPlace, setDrawingPlace] = useState<number>(1);
   const [animatingWinner, setAnimatingWinner] = useState<RaffleParticipant | null>(null);
@@ -261,6 +257,10 @@ export default function RafflePage() {
     () => (raffle?.participants ?? []).filter((participant) => participant.status !== 'eliminated'),
     [raffle],
   );
+
+  useEffect(() => {
+    activeParticipantsRef.current = activeParticipants;
+  }, [activeParticipants]);
 
   // Animación de nombres para la Ruleta (comienza muy rápido y se va deteniendo)
   useEffect(() => {
