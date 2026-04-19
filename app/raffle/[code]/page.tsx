@@ -196,37 +196,42 @@ function RaffleMain() {
   useEffect(() => {
     if (!raffle?.id || !supabase) return;
 
-    const channel = supabase.channel(`raffle_${raffle.id}`, {
+    const channel = supabase.channel(`raffle_live_${raffle.id}`, {
       config: { broadcast: { ack: true } }
     })
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'raffle_participants', filter: `raffle_id=eq.${raffle.id}` },
-        () => { void loadRaffle(); }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'raffles', filter: `id=eq.${raffle.id}` },
-        () => { void loadRaffle(); }
-      )
-      .subscribe();
+    
+    channel
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'raffle_participants', filter: `raffle_id=eq.${raffle.id}` }, () => { void loadRaffle(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'raffles', filter: `id=eq.${raffle.id}` }, () => { void loadRaffle(); })
+      .on('broadcast', { event: 'start_spin' }, (payload) => {
+        const data = payload.payload;
+        setDrawingPlace(data.place);
+        setAnimatingWinner(data.winner);
+        setPreDrawCountdown(3);
+        setHideWinnerOverlay(false);
+        setShowWinnerAnimation(false);
+        if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current);
+      })
+      .on('broadcast', { event: 'time_updated' }, (payload) => {
+        const data = payload.payload;
+        setRaffle(prev => prev ? { ...prev, drawAt: data.drawAt } : null);
+      })
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        const activeViewers = Object.values(state).flatMap((clients: any[]) => clients.map((c) => c.viewerName));
+        setViewers([...new Set(activeViewers)].filter(Boolean));
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED' && viewerName) {
+          await channel.track({ viewerName });
+        }
+      });
 
-    const presenceChannel = supabase.channel(`presence_${raffle.id}`);
-    presenceChannel.on('presence', { event: 'sync' }, () => {
-      const state = presenceChannel.presenceState();
-      const activeViewers = Object.values(state).flatMap((clients: any[]) => clients.map((c) => c.viewerName));
-      setViewers([...new Set(activeViewers)].filter(Boolean));
-    });
-
-    presenceChannel.subscribe(async (status) => {
-      if (status === 'SUBSCRIBED' && viewerName) {
-        await presenceChannel.track({ viewerName });
-      }
-    });
+    channelRef.current = channel;
 
     return () => {
+      channelRef.current = null;
       void supabase?.removeChannel(channel);
-      void supabase?.removeChannel(presenceChannel);
     };
   }, [raffle?.id, loadRaffle, viewerName]);
 
