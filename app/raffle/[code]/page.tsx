@@ -884,28 +884,22 @@ function RaffleMain() {
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Vista Previa</p>
                   </div>
                   
-                  {animationStyle === 'cards' && (
-                    <div className="relative flex h-28 w-56 flex-col items-center justify-center overflow-hidden rounded-[1.2rem] bg-white shadow-lg">
-                      <div className="pointer-events-none absolute left-0 top-0 z-10 h-8 w-full bg-gradient-to-b from-white via-white/80 to-transparent"></div>
-                      <div className="pointer-events-none absolute bottom-0 left-0 z-10 h-8 w-full bg-gradient-to-t from-white via-white/80 to-transparent"></div>
-                      <div className="flex w-full flex-col items-center gap-2">
-                        {[-1, 0, 1].map((offset) => {
-                          const p = getParticipantOffset(offset, previewParticipant);
-                          const isCenter = offset === 0;
-                          return (
-                            <div key={offset} className={`flex w-11/12 items-center justify-center px-2 transition-all duration-[100ms] ease-linear ${isCenter ? 'z-20 scale-105 rounded-lg bg-[#782381] py-2 text-white shadow-md' : 'scale-90 py-1 text-slate-400 opacity-40'}`}>
-                              <span className={`truncate font-bold ${isCenter ? 'text-lg' : 'text-sm'}`}>#{String(p?.assignedNumber || 0).padStart(3, '0')} - {p?.displayName || 'Ejemplo'}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                <div className="relative flex h-28 w-56 flex-col items-center justify-center overflow-hidden rounded-[1.2rem] bg-white shadow-lg">
+                    <div className="pointer-events-none absolute left-0 top-0 z-10 h-8 w-full bg-gradient-to-b from-white via-white/80 to-transparent"></div>
+                    <div className="pointer-events-none absolute bottom-0 left-0 z-10 h-8 w-full bg-gradient-to-t from-white via-white/80 to-transparent"></div>
+                    <div className="flex w-full flex-col items-center gap-2">
+                      {[-1, 0, 1].map((offset) => {
+                        const p = getParticipantOffset(offset, previewParticipant);
+                        const isCenter = offset === 0;
+                        return (
+                          <div key={offset} className={`flex w-11/12 items-center justify-center px-2 transition-all duration-[100ms] ease-linear ${isCenter ? 'z-20 scale-105 rounded-lg bg-[#782381] py-2 text-white shadow-md' : 'scale-90 py-1 text-slate-400 opacity-40'}`}>
+                            <span className={`truncate font-bold ${isCenter ? 'text-lg' : 'text-sm'}`}>#{String(p?.assignedNumber || 0).padStart(3, '0')} - {p?.displayName || 'Ejemplo'}</span>
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
-                  {animationStyle === 'number' && (
-                    <div className="text-6xl font-black text-white tracking-tighter">
-                      {String(previewParticipant?.assignedNumber || 99).padStart(3, '0')}
-                    </div>
-                  )}
+                  </div>
+               
                 </div>
               </div>
             </motion.div>
