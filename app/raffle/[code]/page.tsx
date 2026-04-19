@@ -58,6 +58,7 @@ function RaffleMain() {
   const [animationStyle, setAnimationStyle] = useState<'cards' | 'number'>('cards');
   const [rouletteParticipant, setRouletteParticipant] = useState<RaffleParticipant | null>(null);
   const [previewParticipant, setPreviewParticipant] = useState<RaffleParticipant | null>(null);
+  const [dummyParticipant, setDummyParticipant] = useState<RaffleParticipant | null>(null);
   const [animationDuration, setAnimationDuration] = useState(7);
   const [secretWinners, setSecretWinners] = useState<Record<number, string>>({});
   const [viewers, setViewers] = useState<string[]>([]);
@@ -146,6 +147,26 @@ function RaffleMain() {
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.05);
     } catch (e) { /* Silencioso si el navegador bloquea el audio */ }
+  }, []);
+  
+  // Generador de sonido triste para perdedores
+  const playLoseSound = useCallback(() => {
+    try {
+      if (!audioCtxRef.current) return;
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') void ctx.resume();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(300, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 1.2);
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.2);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 1.2);
+    } catch (e) {}
   }, []);
 
   // Generador de acorde de victoria
@@ -244,7 +265,7 @@ function RaffleMain() {
 
   useEffect(() => {
     const unAnimatedWinner = actualWinners.find(w => !animatedWinnerIds.has(w.id));
-    if (unAnimatedWinner && !showWinnerAnimation && !displayedWinner && !animationTimeoutRef.current && preDrawCountdown === null) {
+    if (unAnimatedWinner && !showWinnerAnimation && !displayedWinner && !animationTimeoutRef.current && preDrawCountdown === null && !dummyParticipant) {
       setDrawingPlace(unAnimatedWinner.place || 1);
       setAnimatingWinner(unAnimatedWinner);
       setHideWinnerOverlay(false);
@@ -255,35 +276,45 @@ function RaffleMain() {
       setHideWinnerOverlay(false);
       setAnimatedWinnerIds(new Set());
       setPreDrawCountdown(null);
+      setDummyParticipant(null);
     }
-  }, [actualWinners, displayedWinner, showWinnerAnimation, animatedWinnerIds, preDrawCountdown]);
+  }, [actualWinners, displayedWinner, showWinnerAnimation, animatedWinnerIds, preDrawCountdown, dummyParticipant]);
 
   useEffect(() => {
     if (preDrawCountdown !== null && preDrawCountdown > 0) {
       const timer = setTimeout(() => setPreDrawCountdown(preDrawCountdown - 1), 1000);
       return () => clearTimeout(timer);
-    } else if (preDrawCountdown === 0 && animatingWinner) {
+    } else if (preDrawCountdown === 0) {
       setPreDrawCountdown(null);
       setShowWinnerAnimation(true);
       
+      const target = dummyParticipant || animatingWinner;
+      if (!target) return;
+
       animationTimeoutRef.current = window.setTimeout(() => {
         setShowWinnerAnimation(false);
-        setDisplayedWinner(animatingWinner);
-        setAnimatedWinnerIds(prev => new Set(prev).add(animatingWinner.id));
+        setDisplayedWinner(target);
+        
+        if (!dummyParticipant) {
+          setAnimatedWinnerIds(prev => new Set(prev).add(target.id));
+        }
           
-        if (animatingWinner.place === 1) {
+        if (target.place === 1 && !dummyParticipant) {
           playWinSound();
+        } else {
+          playLoseSound();
         }
 
         // Cierre automatico para todos los espectadores despues de 6 segundos
         animationTimeoutRef.current = window.setTimeout(() => {
           setHideWinnerOverlay(true);
           setDisplayedWinner(null);
+          setDummyParticipant(null);
           animationTimeoutRef.current = null;
         }, 6000);
       }, animationDuration * 1000);
     }
-  }, [preDrawCountdown, animatingWinner, animationDuration, playWinSound]);
+  }, [preDrawCountdown, animatingWinner, animationDuration, playWinSound, playLoseSound, dummyParticipant]);
 
   useEffect(() => {
     return () => {
@@ -309,7 +340,8 @@ function RaffleMain() {
 
   // Animación de nombres para la Ruleta (comienza muy rápido y se va deteniendo)
   useEffect(() => {
-    if (!showWinnerAnimation || !animatingWinner || activeParticipantsRef.current.length === 0) return;
+    const target = dummyParticipant || animatingWinner;
+    if (!showWinnerAnimation || !target || activeParticipantsRef.current.length === 0) return;
 
     let timeoutId: number;
     const startTime = Date.now();
@@ -319,11 +351,11 @@ function RaffleMain() {
       const elapsed = Date.now() - startTime;
 
       if (elapsed >= duration) {
-        setRouletteParticipant(animatingWinner);
+        setRouletteParticipant(target);
         return;
       }
       
-      const pool = activeParticipantsRef.current.filter((p) => p.id !== animatingWinner.id && !Object.values(secretWinners).includes(p.id));
+      const pool = activeParticipantsRef.current.filter((p) => p.id !== target.id && !Object.values(secretWinners).includes(p.id));
       const safePool = pool.length > 0 ? pool : activeParticipantsRef.current;
       const randomIndex = Math.floor(Math.random() * safePool.length);
       
@@ -340,7 +372,7 @@ function RaffleMain() {
     timeoutId = window.setTimeout(tick, 20);
 
     return () => window.clearTimeout(timeoutId);
-  }, [showWinnerAnimation, animatingWinner, playTick, animationDuration, secretWinners]);
+  }, [showWinnerAnimation, animatingWinner, dummyParticipant, playTick, animationDuration, secretWinners]);
 
   // Mini-animación de nombres para la Sala de Espera
   useEffect(() => {
@@ -424,6 +456,16 @@ function RaffleMain() {
     }
   };
 
+  const handleDummySpin = async () => {
+    if (!raffle || activeParticipants.length === 0) return alert("No hay participantes para girar.");
+    const eligible = activeParticipants.filter(p => p.status !== 'winner' && !Object.values(secretWinners).includes(p.id));
+    if (eligible.length === 0) return alert("Todos han ganado o estan asignados.");
+    const randomId = eligible[Math.floor(Math.random() * eligible.length)].id;
+    
+    // Enviar broadcast a todos para que giren sincronizados
+    await supabase?.channel(`raffle_${raffle.id}`).send({ type: 'broadcast', event: 'dummy_spin', payload: { participantId: randomId } });
+  };
+
   const handleEliminateParticipant = async (participantId: string) => {
     if (!raffle) {
       return;
@@ -501,10 +543,11 @@ function RaffleMain() {
     }
   };
 
-  const handleSaveTime = async () => {
+  const handleAddMinutes = async (minutes: number) => {
     if (!raffle || !supabase) return;
-    const val = editTimeValue ? new Date(editTimeValue).toISOString() : null;
-    const { error } = await supabase.from('raffles').update({ draw_at: val }).eq('id', raffle.id);
+    const currentDrawAt = raffle.drawAt ? new Date(raffle.drawAt).getTime() : Date.now();
+    const newDrawAt = new Date(currentDrawAt + minutes * 60000).toISOString();
+    const { error } = await supabase.from('raffles').update({ draw_at: newDrawAt }).eq('id', raffle.id);
     if (!error) {
       setIsEditingTime(false);
       loadRaffle();
@@ -543,17 +586,20 @@ function RaffleMain() {
   }
 
   const targetParticipant = showWinnerAnimation ? rouletteParticipant : displayedWinner;
-  const placeText = drawingPlace === 3 ? '3er Lugar' : drawingPlace === 2 ? '2do Lugar' : '1er Lugar';
-  const isFirstPlace = drawingPlace === 1;
+  const placeText = dummyParticipant ? 'Giro al Agua' : (drawingPlace === 3 ? '3er Lugar' : drawingPlace === 2 ? '2do Lugar' : '1er Lugar');
+  const isFirstPlace = drawingPlace === 1 && !dummyParticipant;
+  const isDummy = !!dummyParticipant;
   
-  const winner1 = actualWinners.find((w) => w.place === 1);
-  const winner2 = actualWinners.find((w) => w.place === 2);
-  const winner3 = actualWinners.find((w) => w.place === 3);
+  const isOverlayVisible = showWinnerAnimation || (displayedWinner && !hideWinnerOverlay) || preDrawCountdown !== null;
+  
+  const safeWinner1 = animatedWinnerIds.has(actualWinners.find((w) => w.place === 1)?.id || '') ? actualWinners.find((w) => w.place === 1) : null;
+  const safeWinner2 = animatedWinnerIds.has(actualWinners.find((w) => w.place === 2)?.id || '') ? actualWinners.find((w) => w.place === 2) : null;
+  const safeWinner3 = animatedWinnerIds.has(actualWinners.find((w) => w.place === 3)?.id || '') ? actualWinners.find((w) => w.place === 3) : null;
 
   return (
     <div className="min-h-screen bg-[var(--page-bg)]">
       {/* Overlay de Sorteo en Vivo (Ruleta y Confeti) */}
-      {(showWinnerAnimation || (displayedWinner && !hideWinnerOverlay)) && (
+      {isOverlayVisible && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/85 p-6 backdrop-blur-md">
           {displayedWinner && !showWinnerAnimation && isFirstPlace && (
             <Confetti width={width} height={height} recycle={false} numberOfPieces={600} gravity={0.15} />
@@ -562,7 +608,7 @@ function RaffleMain() {
           <motion.div
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className={`relative flex w-full max-w-2xl flex-col items-center justify-center rounded-[3rem] border ${isFirstPlace && !preDrawCountdown ? 'border-yellow-400/50 shadow-[0_0_100px_-20px_rgba(250,204,21,0.5)]' : 'border-slate-300/50 shadow-[0_0_100px_-20px_rgba(148,163,184,0.2)] filter grayscale-[40%]'} ${animationStyle === 'cards' && preDrawCountdown === null ? 'bg-transparent border-none shadow-none' : 'bg-white p-10'} text-center transition-all duration-700`}
+            className={`relative flex w-full max-w-2xl flex-col items-center justify-center rounded-[3rem] border ${isFirstPlace && !preDrawCountdown ? 'border-yellow-400/50 shadow-[0_0_100px_-20px_rgba(250,204,21,0.5)]' : 'border-slate-300/50 shadow-[0_0_100px_-20px_rgba(148,163,184,0.2)] filter grayscale-[60%]'} ${animationStyle === 'cards' && preDrawCountdown === null ? 'bg-transparent border-none shadow-none' : 'bg-white p-10'} text-center transition-all duration-700`}
           >
             {raffle?.isAdmin && (
               <button
@@ -571,6 +617,7 @@ function RaffleMain() {
                   setDisplayedWinner(null);
                   setShowWinnerAnimation(false);
                   setPreDrawCountdown(null);
+                  setDummyParticipant(null);
                   if (animationTimeoutRef.current) {
                     clearTimeout(animationTimeoutRef.current);
                     animationTimeoutRef.current = null;
@@ -585,14 +632,14 @@ function RaffleMain() {
             {preDrawCountdown !== null ? (
               <div className="flex flex-col items-center justify-center py-10">
                 <p className="text-xl font-bold uppercase tracking-[0.3em] text-[#ec2aa4] mb-8 animate-pulse">
-                  Comenzando Sorteo del {placeText}
+                  {isDummy ? 'Comenzando Giro al Agua' : `Comenzando Sorteo del ${placeText}`}
                 </p>
                 <motion.div
                   key={preDrawCountdown}
                   initial={{ scale: 0.5, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 1.5, opacity: 0 }}
-                  className="text-[8rem] font-black text-slate-900 leading-none tabular-nums"
+                  className="text-[8rem] font-black text-white leading-none tabular-nums"
                 >
                   {preDrawCountdown}
                 </motion.div>
@@ -600,7 +647,7 @@ function RaffleMain() {
             ) : (
               <>
                 <p className={`text-xl font-bold uppercase tracking-[0.3em] animate-pulse ${isFirstPlace ? 'text-yellow-500' : 'text-slate-400'}`}>
-                  {showWinnerAnimation ? `Sorteando ${placeText}...` : (isFirstPlace ? '¡Gran Ganador!' : `¡${placeText}!`)}
+                  {showWinnerAnimation ? `Sorteando ${placeText}...` : (isDummy ? '¡Ufff, casi! Suerte a la proxima' : (isFirstPlace ? '¡Gran Ganador!' : `¡${placeText}!`))}
                 </p>
 
                 {animationStyle === 'cards' && (
@@ -726,12 +773,12 @@ function RaffleMain() {
             <h2 className="absolute top-8 text-2xl md:text-3xl font-black uppercase tracking-widest text-slate-800">Podio de Ganadores</h2>
             <div className="flex items-end justify-center gap-2 sm:gap-8 w-full max-w-3xl">
               {/* Segundo Lugar */}
-              <div className={`flex flex-col items-center justify-end w-1/3 ${canPickWinner && !winner2 && !actionLoadingId ? 'cursor-pointer hover:opacity-80 hover:-translate-y-2 transition-all duration-300' : ''}`} onClick={() => { if (canPickWinner && !winner2 && !actionLoadingId) handleDraw(2); }}>
+              <div className={`flex flex-col items-center justify-end w-1/3 ${canPickWinner && !safeWinner2 && !actionLoadingId ? 'cursor-pointer hover:opacity-80 hover:-translate-y-2 transition-all duration-300' : ''}`} onClick={() => { if (canPickWinner && !safeWinner2 && !actionLoadingId) handleDraw(2); }}>
                 <div className="mb-4 text-center h-16 flex flex-col justify-end">
-                  {winner2 ? (
+                  {safeWinner2 ? (
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                      <div className="text-xl md:text-2xl font-black text-slate-900 leading-tight">#{String(winner2.assignedNumber).padStart(3, '0')}</div>
-                      <div className="text-sm md:text-base font-bold text-slate-600 truncate w-24 sm:w-36">{winner2.displayName}</div>
+                      <div className="text-xl md:text-2xl font-black text-slate-900 leading-tight">#{String(safeWinner2.assignedNumber).padStart(3, '0')}</div>
+                      <div className="text-sm md:text-base font-bold text-slate-600 truncate w-24 sm:w-36">{safeWinner2.displayName}</div>
                     </motion.div>
                   ) : (
                     <div className="text-sm font-semibold text-slate-400">{canPickWinner ? (actionLoadingId === 'drawing-2' ? 'Sorteando...' : 'Haz clic para sortear') : 'Por sortear'}</div>
@@ -740,12 +787,12 @@ function RaffleMain() {
                 <motion.div initial={{ height: 0 }} animate={{ height: 160 }} className="w-full rounded-t-2xl shadow-[inset_0_4px_10px_rgba(255,255,255,0.5)] flex justify-center pt-4 text-4xl font-black text-white drop-shadow-md bg-gradient-to-b from-slate-400 to-slate-500">2</motion.div>
               </div>
               {/* Primer Lugar */}
-              <div className={`flex flex-col items-center justify-end w-1/3 ${canPickWinner && !winner1 && !actionLoadingId ? 'cursor-pointer hover:opacity-80 hover:-translate-y-2 transition-all duration-300' : ''}`} onClick={() => { if (canPickWinner && !winner1 && !actionLoadingId) handleDraw(1); }}>
+              <div className={`flex flex-col items-center justify-end w-1/3 ${canPickWinner && !safeWinner1 && !actionLoadingId ? 'cursor-pointer hover:opacity-80 hover:-translate-y-2 transition-all duration-300' : ''}`} onClick={() => { if (canPickWinner && !safeWinner1 && !actionLoadingId) handleDraw(1); }}>
                 <div className="mb-4 text-center h-16 flex flex-col justify-end">
-                  {winner1 ? (
+                  {safeWinner1 ? (
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                      <div className="text-2xl md:text-3xl font-black text-yellow-600 leading-tight">#{String(winner1.assignedNumber).padStart(3, '0')}</div>
-                      <div className="text-base md:text-lg font-bold text-slate-800 truncate w-28 sm:w-40">{winner1.displayName}</div>
+                      <div className="text-2xl md:text-3xl font-black text-yellow-600 leading-tight">#{String(safeWinner1.assignedNumber).padStart(3, '0')}</div>
+                      <div className="text-base md:text-lg font-bold text-slate-800 truncate w-28 sm:w-40">{safeWinner1.displayName}</div>
                     </motion.div>
                   ) : (
                     <div className="text-sm font-semibold text-slate-400">{canPickWinner ? (actionLoadingId === 'drawing-1' ? 'Sorteando...' : 'Haz clic para sortear') : 'Por sortear'}</div>
@@ -754,12 +801,12 @@ function RaffleMain() {
                 <motion.div initial={{ height: 0 }} animate={{ height: 240 }} className="w-full rounded-t-2xl shadow-[inset_0_4px_10px_rgba(255,255,255,0.5)] flex justify-center pt-4 text-5xl font-black text-white drop-shadow-md bg-gradient-to-b from-yellow-400 to-yellow-600 border-x border-t border-yellow-300">1</motion.div>
               </div>
               {/* Tercer Lugar */}
-              <div className={`flex flex-col items-center justify-end w-1/3 ${canPickWinner && !winner3 && !actionLoadingId ? 'cursor-pointer hover:opacity-80 hover:-translate-y-2 transition-all duration-300' : ''}`} onClick={() => { if (canPickWinner && !winner3 && !actionLoadingId) handleDraw(3); }}>
+              <div className={`flex flex-col items-center justify-end w-1/3 ${canPickWinner && !safeWinner3 && !actionLoadingId ? 'cursor-pointer hover:opacity-80 hover:-translate-y-2 transition-all duration-300' : ''}`} onClick={() => { if (canPickWinner && !safeWinner3 && !actionLoadingId) handleDraw(3); }}>
                 <div className="mb-4 text-center h-16 flex flex-col justify-end">
-                  {winner3 ? (
+                  {safeWinner3 ? (
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                      <div className="text-xl md:text-2xl font-black text-slate-900 leading-tight">#{String(winner3.assignedNumber).padStart(3, '0')}</div>
-                      <div className="text-sm md:text-base font-bold text-slate-600 truncate w-24 sm:w-36">{winner3.displayName}</div>
+                      <div className="text-xl md:text-2xl font-black text-slate-900 leading-tight">#{String(safeWinner3.assignedNumber).padStart(3, '0')}</div>
+                      <div className="text-sm md:text-base font-bold text-slate-600 truncate w-24 sm:w-36">{safeWinner3.displayName}</div>
                     </motion.div>
                   ) : (
                     <div className="text-sm font-semibold text-slate-400">{canPickWinner ? (actionLoadingId === 'drawing-3' ? 'Sorteando...' : 'Haz clic para sortear') : 'Por sortear'}</div>
@@ -772,6 +819,14 @@ function RaffleMain() {
         )}
 
         <div className="space-y-8">
+          {canPickWinner && (
+            <Card className="rounded-[2rem] p-6 border-4 border-indigo-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-indigo-600 mb-4">Juegos de Prueba (Eliminación)</p>
+              <Button disabled={actionLoadingId !== ''} onClick={handleDummySpin} className="bg-indigo-600 hover:bg-indigo-700 border-none shadow-md">Giro al Agua (Sin Ganador)</Button>
+              <p className="mt-3 text-xs text-slate-500">Usa esto para girar la ruleta y descartar/asustar a alguien sin darle un premio.</p>
+            </Card>
+          )}
+
           {raffle?.isStaff && (
             <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
               <div className="mb-6 flex flex-col gap-3 rounded-[1.5rem] border border-pink-100 bg-white p-5 shadow-[0_8px_30px_-20px_rgba(190,24,93,0.15)]">
@@ -895,16 +950,6 @@ function RaffleMain() {
                             {participant.place}º
                           </span>
                         )}
-
-                          {canEliminate && participant.status === 'active' && (
-                            <button
-                              onClick={() => handleEliminateParticipant(participant.id)}
-                              disabled={actionLoadingId === participant.id}
-                              className="rounded-full bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-100 disabled:opacity-60"
-                            >
-                              {actionLoadingId === participant.id ? '...' : 'Eliminar'}
-                            </button>
-                          )}
                         </div>
                     </motion.div>
                   ))

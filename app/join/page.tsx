@@ -59,9 +59,6 @@ export default function JoinRaffle() {
             </div>
             <p className="mt-6 text-sm font-semibold uppercase tracking-[0.32em] text-[#ec2aa4]">Ingresar al sorteo</p>
             <h1 className="mt-3 text-3xl font-bold text-slate-950 sm:text-4xl">Escribe tu codigo y entra en segundos</h1>
-            <p className="mt-3 text-sm leading-7 text-slate-500 sm:text-base">
-              Si el codigo existe, te llevaremos directamente a la pantalla del sorteo con los numeros ocupados, el contador y la lista de participantes.
-            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">

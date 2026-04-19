@@ -162,9 +162,9 @@ export default function Dashboard() {
       <header className="border-b border-pink-100 bg-white/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#ec2aa4]">Dashboard</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#ec2aa4]">Mi Perfil</p>
             <h1 className="mt-2 text-3xl font-bold text-slate-950">Tus sorteos activos</h1>
-            <p className="mt-1 text-sm text-slate-500">{user?.email}</p>
+            <p className="mt-1 text-sm font-bold text-slate-500">Sesión iniciada como: {user?.user_metadata?.name || user?.user_metadata?.display_name || user?.email}</p>
           </div>
 
           <div className="flex flex-wrap gap-3">

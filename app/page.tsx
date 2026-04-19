@@ -172,12 +172,12 @@ export default function Home() {
           <div className="flex items-center gap-3 text-sm">
             {user ? (
               <div className="flex items-center gap-3 rounded-full border border-pink-100 bg-white px-3 py-2 text-sm text-slate-700 shadow-[0_18px_40px_-28px_rgba(190,24,93,0.45)]">
-                <span className="hidden max-w-[11rem] truncate sm:inline">{user.email}</span>
+                <span className="hidden max-w-[11rem] font-bold truncate sm:inline">{user?.user_metadata?.name || user?.user_metadata?.display_name || user.email.split('@')[0]}</span>
                 <button
                   onClick={() => router.push('/dashboard')}
                   className="rounded-full bg-pink-50 px-4 py-2 font-semibold text-[#d61f96] transition hover:bg-pink-100"
                 >
-                  Dashboard
+                  Perfil
                 </button>
                 <button
                   onClick={handleLogout}

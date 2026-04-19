@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Outfit } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const font = Outfit({
+const font = Inter({
   subsets: ["latin"],
 });
 
@@ -19,7 +19,7 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${font.className} h-full antialiased`}
+      className={`${font.className} h-full antialiased tracking-tight`}
     >
       <body className="min-h-full flex flex-col bg-[#fff7fb] text-slate-900">
         {children}
