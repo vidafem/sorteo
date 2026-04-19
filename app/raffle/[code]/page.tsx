@@ -53,9 +53,11 @@ export default function RafflePage() {
   const [displayedWinner, setDisplayedWinner] = useState<RaffleParticipant | null>(null);
   const [hideWinnerOverlay, setHideWinnerOverlay] = useState(false);
   const [currentAnimatedNameIndex, setCurrentAnimatedNameIndex] = useState(0);
-  const [animationStyle, setAnimationStyle] = useState<'roulette' | 'cards' | 'number'>('cards');
+  const [animationStyle, setAnimationStyle] = useState<'cards' | 'number'>('cards');
   const [rouletteParticipant, setRouletteParticipant] = useState<RaffleParticipant | null>(null);
   const [previewParticipant, setPreviewParticipant] = useState<RaffleParticipant | null>(null);
+  const [animationDuration, setAnimationDuration] = useState(7);
+  const [secretWinners, setSecretWinners] = useState<Record<number, string>>({});
 
   // Estado para el formulario manual
   const [addName, setAddName] = useState('');
@@ -68,6 +70,15 @@ export default function RafflePage() {
   const initialLoadRef = useRef(true);
   const animationTimeoutRef = useRef<number | null>(null);
   const activeParticipantsRef = useRef<RaffleParticipant[]>([]);
+
+  useEffect(() => {
+    if (raffle?.id) {
+      const stored = localStorage.getItem(`secret_winners_${raffle.id}`);
+      if (stored) {
+        try { setSecretWinners(JSON.parse(stored)); } catch(e) {}
+      }
+    }
+  }, [raffle?.id]);
 
   const loadRaffle = useCallback(async () => {
     const raffleData = await getRaffleByCode(code);
@@ -231,14 +242,14 @@ export default function RafflePage() {
             setDisplayedWinner(null);
             animationTimeoutRef.current = null;
           }, 6000);
-      }, 7000); // 7 segundos de ruleta (frenado gradual)
+      }, animationDuration * 1000);
     } else if (actualWinners.length === 0) {
       setDisplayedWinner(null);
       setShowWinnerAnimation(false);
       setHideWinnerOverlay(false);
       setAnimatedWinnerIds(new Set());
     }
-  }, [actualWinners, displayedWinner, showWinnerAnimation, animatedWinnerIds, playWinSound]);
+  }, [actualWinners, displayedWinner, showWinnerAnimation, animatedWinnerIds, playWinSound, animationDuration]);
 
   useEffect(() => {
     return () => {
@@ -268,7 +279,7 @@ export default function RafflePage() {
 
     let timeoutId: number;
     const startTime = Date.now();
-    const duration = 7000; // Debe coincidir con los 7 segundos de arriba
+    const duration = animationDuration * 1000;
 
     const tick = () => {
       const elapsed = Date.now() - startTime;
@@ -278,14 +289,14 @@ export default function RafflePage() {
         return;
       }
       
-      const pool = activeParticipantsRef.current.filter((p) => p.id !== animatingWinner.id);
+      const pool = activeParticipantsRef.current.filter((p) => p.id !== animatingWinner.id && !Object.values(secretWinners).includes(p.id));
       const safePool = pool.length > 0 ? pool : activeParticipantsRef.current;
       const randomIndex = Math.floor(Math.random() * safePool.length);
       
       setRouletteParticipant(safePool[randomIndex]);
       playTick();
 
-      // Efecto de frenado más drástico: arranca a velocidad luz (20ms) y frena suave
+      // Efecto de frenado drástico: arranca a velocidad luz (20ms) y frena suave
       const progress = elapsed / duration;
       const nextDelay = 20 + Math.pow(progress, 5) * 800;
 
@@ -295,7 +306,7 @@ export default function RafflePage() {
     timeoutId = window.setTimeout(tick, 20);
 
     return () => window.clearTimeout(timeoutId);
-  }, [showWinnerAnimation, animatingWinner, playTick]);
+  }, [showWinnerAnimation, animatingWinner, playTick, animationDuration, secretWinners]);
 
   // Mini-animación de nombres para la Sala de Espera
   useEffect(() => {
@@ -344,32 +355,31 @@ export default function RafflePage() {
   const handleManualSelectWinner = async (participantId: string) => {
     if (!raffle) return;
     
-    const placeStr = prompt("Ingrese el lugar para este ganador (1, 2, o 3):", "1");
+    const placeStr = prompt("(Oculto Admin) Ingresa el lugar que ganará este participante (1, 2 o 3):\nDeja en blanco para cancelar.");
     if (!placeStr) return;
     const place = parseInt(placeStr, 10);
     if (![1,2,3].includes(place)) return alert("Lugar invalido. Debe ser 1, 2 o 3.");
-    if (actualWinners.find(w => w.place === place)) return alert(`Ya existe un ganador en el ${place}º lugar.`);
     
-    setActionLoadingId(participantId);
-    try {
-      await selectWinnerForRaffle(raffle.id, participantId, place);
-      await loadRaffle();
-    } catch (error) {
-      console.error('No se pudo seleccionar el ganador:', error);
-    } finally {
-      setActionLoadingId('');
-    }
+    const newSecrets = { ...secretWinners, [place]: participantId };
+    setSecretWinners(newSecrets);
+    localStorage.setItem(`secret_winners_${raffle.id}`, JSON.stringify(newSecrets));
   };
 
-  const handleRandomDraw = async (place: number) => {
+  const handleDraw = async (place: number) => {
     if (!raffle) return;
-    const eligible = activeParticipants.filter(p => p.status !== 'winner');
-    if (eligible.length === 0) return alert("No hay participantes elegibles.");
     
-    const selected = eligible[Math.floor(Math.random() * eligible.length)];
-    setActionLoadingId('drawing');
+    let selectedId = secretWinners[place];
+    const secretParticipant = activeParticipants.find(p => p.id === selectedId && p.status !== 'winner');
+    
+    if (!secretParticipant) {
+      const eligible = activeParticipants.filter(p => p.status !== 'winner' && !Object.values(secretWinners).includes(p.id));
+      if (eligible.length === 0) return alert("No hay participantes elegibles para sortear.");
+      selectedId = eligible[Math.floor(Math.random() * eligible.length)].id;
+    }
+
+    setActionLoadingId(`drawing-${place}`);
     try {
-      await selectWinnerForRaffle(raffle.id, selected.id, place);
+      await selectWinnerForRaffle(raffle.id, selectedId, place);
       await loadRaffle();
     } catch (err) {
       console.error(err);
@@ -437,6 +447,21 @@ export default function RafflePage() {
       setAddError(err.message || 'Error al agregar los numeros.');
     } finally {
       setAdding(false);
+    }
+  };
+
+  const handleSetSecretWinner = (number: number) => {
+    if (!raffle?.isAdmin) return;
+    const placeStr = prompt(`(Oculto Admin) Ingresa el lugar que ganará el número #${number} (1, 2 o 3):\nDeja en blanco para cancelar.`);
+    if (!placeStr) return;
+    const place = parseInt(placeStr, 10);
+    if ([1, 2, 3].includes(place)) {
+      const participant = activeParticipants.find(p => p.assignedNumber === number);
+      if (participant) {
+        const newSecrets = { ...secretWinners, [place]: participant.id };
+        setSecretWinners(newSecrets);
+        localStorage.setItem(`secret_winners_${raffle.id}`, JSON.stringify(newSecrets));
+      }
     }
   };
 
@@ -512,11 +537,6 @@ export default function RafflePage() {
               {showWinnerAnimation ? `Sorteando ${placeText}...` : (isFirstPlace ? '¡Gran Ganador!' : `¡${placeText}!`)}
             </p>
 
-            {animationStyle === 'roulette' && (
-              <div className={`mt-8 font-extrabold text-slate-900 truncate w-full px-4 ${showWinnerAnimation ? 'text-4xl md:text-6xl' : `text-5xl md:text-7xl ${isFirstPlace ? 'text-yellow-500' : 'text-slate-500'} transition-all`}`}>
-                #{String(targetParticipant?.assignedNumber || 0).padStart(3, '0')} - {targetParticipant?.displayName || '???'}
-              </div>
-            )}
             {animationStyle === 'cards' && (
               <div className="flex flex-col items-center mt-6">
                 {showWinnerAnimation && (
@@ -543,7 +563,7 @@ export default function RafflePage() {
                               {p?.displayName?.charAt(0).toUpperCase() || '?'}
                             </div>
                           )}
-                          <span className={`truncate font-bold ${isCenter ? 'text-3xl' : 'text-xl'}`}>{p?.displayName || '???'}</span>
+                          <span className={`truncate font-bold ${isCenter ? 'text-3xl' : 'text-xl'}`}>#{String(p?.assignedNumber || 0).padStart(3, '0')} - {p?.displayName || '???'}</span>
                         </div>
                       );
                     })}
@@ -622,7 +642,7 @@ export default function RafflePage() {
             <h2 className="absolute top-8 text-2xl md:text-3xl font-black uppercase tracking-widest text-slate-800">Podio de Ganadores</h2>
             <div className="flex items-end justify-center gap-2 sm:gap-8 w-full max-w-3xl">
               {/* Segundo Lugar */}
-              <div className="flex flex-col items-center justify-end w-1/3">
+              <div className={`flex flex-col items-center justify-end w-1/3 ${raffle?.isAdmin && !winner2 && !actionLoadingId ? 'cursor-pointer hover:opacity-80 transition' : ''}`} onClick={() => { if (raffle?.isAdmin && !winner2 && !actionLoadingId) handleDraw(2); }}>
                 <div className="mb-4 text-center h-16 flex flex-col justify-end">
                   {winner2 ? (
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -630,13 +650,13 @@ export default function RafflePage() {
                       <div className="text-sm md:text-base font-bold text-slate-600 truncate w-24 sm:w-36">{winner2.displayName}</div>
                     </motion.div>
                   ) : (
-                    <div className="text-sm font-semibold text-slate-400">Por sortear</div>
+                    <div className="text-sm font-semibold text-slate-400">{raffle?.isAdmin ? (actionLoadingId === 'drawing-2' ? 'Sorteando...' : 'Haz clic para sortear') : 'Por sortear'}</div>
                   )}
                 </div>
                 <motion.div initial={{ height: 0 }} animate={{ height: 160 }} className="w-full rounded-t-2xl shadow-[inset_0_4px_10px_rgba(255,255,255,0.5)] flex justify-center pt-4 text-4xl font-black text-white drop-shadow-md bg-gradient-to-b from-slate-400 to-slate-500">2</motion.div>
               </div>
               {/* Primer Lugar */}
-              <div className="flex flex-col items-center justify-end w-1/3">
+              <div className={`flex flex-col items-center justify-end w-1/3 ${raffle?.isAdmin && !winner1 && !actionLoadingId ? 'cursor-pointer hover:opacity-80 transition' : ''}`} onClick={() => { if (raffle?.isAdmin && !winner1 && !actionLoadingId) handleDraw(1); }}>
                 <div className="mb-4 text-center h-16 flex flex-col justify-end">
                   {winner1 ? (
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -644,13 +664,13 @@ export default function RafflePage() {
                       <div className="text-base md:text-lg font-bold text-slate-800 truncate w-28 sm:w-40">{winner1.displayName}</div>
                     </motion.div>
                   ) : (
-                    <div className="text-sm font-semibold text-slate-400">Por sortear</div>
+                    <div className="text-sm font-semibold text-slate-400">{raffle?.isAdmin ? (actionLoadingId === 'drawing-1' ? 'Sorteando...' : 'Haz clic para sortear') : 'Por sortear'}</div>
                   )}
                 </div>
                 <motion.div initial={{ height: 0 }} animate={{ height: 240 }} className="w-full rounded-t-2xl shadow-[inset_0_4px_10px_rgba(255,255,255,0.5)] flex justify-center pt-4 text-5xl font-black text-white drop-shadow-md bg-gradient-to-b from-yellow-400 to-yellow-600 border-x border-t border-yellow-300">1</motion.div>
               </div>
               {/* Tercer Lugar */}
-              <div className="flex flex-col items-center justify-end w-1/3">
+              <div className={`flex flex-col items-center justify-end w-1/3 ${raffle?.isAdmin && !winner3 && !actionLoadingId ? 'cursor-pointer hover:opacity-80 transition' : ''}`} onClick={() => { if (raffle?.isAdmin && !winner3 && !actionLoadingId) handleDraw(3); }}>
                 <div className="mb-4 text-center h-16 flex flex-col justify-end">
                   {winner3 ? (
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -658,7 +678,7 @@ export default function RafflePage() {
                       <div className="text-sm md:text-base font-bold text-slate-600 truncate w-24 sm:w-36">{winner3.displayName}</div>
                     </motion.div>
                   ) : (
-                    <div className="text-sm font-semibold text-slate-400">Por sortear</div>
+                    <div className="text-sm font-semibold text-slate-400">{raffle?.isAdmin ? (actionLoadingId === 'drawing-3' ? 'Sorteando...' : 'Haz clic para sortear') : 'Por sortear'}</div>
                   )}
                 </div>
                 <motion.div initial={{ height: 0 }} animate={{ height: 110 }} className="w-full rounded-t-2xl shadow-[inset_0_4px_10px_rgba(255,255,255,0.3)] flex justify-center pt-3 text-3xl font-black text-white drop-shadow-md bg-gradient-to-b from-orange-400 to-orange-600">3</motion.div>
@@ -668,26 +688,19 @@ export default function RafflePage() {
         )}
 
         <div className="space-y-8">
-          {canPickWinner && (
-            <Card className="rounded-[2rem] p-6 border-4 border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-amber-600 mb-4">Controles de Sorteo (Solo Admin)</p>
-              <div className="flex flex-wrap gap-4">
-                <Button disabled={!!actualWinners.find(w => w.place === 3) || actionLoadingId !== ''} onClick={() => handleRandomDraw(3)} className="bg-amber-700 hover:bg-amber-800 border-none shadow-lg">Sorteo 3er Lugar</Button>
-                <Button disabled={!!actualWinners.find(w => w.place === 2) || actionLoadingId !== ''} onClick={() => handleRandomDraw(2)} className="bg-slate-400 hover:bg-slate-500 border-none shadow-lg">Sorteo 2do Lugar</Button>
-                <Button disabled={!!actualWinners.find(w => w.place === 1) || actionLoadingId !== ''} onClick={() => handleRandomDraw(1)} className="bg-yellow-500 hover:bg-yellow-600 border-none shadow-lg text-lg px-8">Sorteo 1er Lugar</Button>
-              </div>
-            </Card>
-          )}
-
           {raffle?.isStaff && (
             <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
               <div className="mb-6 flex flex-col gap-3 rounded-[1.5rem] border border-pink-100 bg-white p-5 shadow-[0_8px_30px_-20px_rgba(190,24,93,0.15)]">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#ec2aa4]">Visualizacion (Solo Staff)</p>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="text-base font-bold text-slate-900">¿Como deseas ver el sorteo?</h2>
-                  <div className="flex flex-wrap gap-1 rounded-full border border-pink-100 bg-pink-50/50 p-1">
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                      Segundos:
+                      <input type="number" min="3" max="20" value={animationDuration} onChange={e => setAnimationDuration(Number(e.target.value))} className="w-14 rounded-lg border border-pink-100 bg-[#fff9fc] px-2 py-1 text-center outline-none focus:border-pink-300" />
+                    </label>
+                    <div className="flex flex-wrap gap-1 rounded-full border border-pink-100 bg-pink-50/50 p-1">
                     {[
-                      { id: 'roulette', label: 'Ruleta', icon: '🎡' },
                       { id: 'cards', label: 'Tarjetas', icon: '📇' },
                       { id: 'number', label: 'Solo Numero', icon: '🔢' }
                     ].map((mode) => (
@@ -709,6 +722,7 @@ export default function RafflePage() {
                         </span>
                       </button>
                     ))}
+                    </div>
                   </div>
                 </div>
                 
@@ -718,11 +732,6 @@ export default function RafflePage() {
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Vista Previa</p>
                   </div>
                   
-                  {animationStyle === 'roulette' && (
-                    <div className="text-3xl font-extrabold text-white truncate px-4">
-                      {previewParticipant?.displayName || 'Nombre de Ejemplo'}
-                    </div>
-                  )}
                   {animationStyle === 'cards' && (
                     <div className="relative flex h-28 w-56 flex-col items-center justify-center overflow-hidden rounded-[1.2rem] bg-white shadow-lg">
                       <div className="pointer-events-none absolute left-0 top-0 z-10 h-8 w-full bg-gradient-to-b from-white via-white/80 to-transparent"></div>
@@ -733,7 +742,7 @@ export default function RafflePage() {
                           const isCenter = offset === 0;
                           return (
                             <div key={offset} className={`flex w-11/12 items-center justify-center px-2 transition-all duration-[100ms] ease-linear ${isCenter ? 'z-20 scale-105 rounded-lg bg-[#782381] py-2 text-white shadow-md' : 'scale-90 py-1 text-slate-400 opacity-40'}`}>
-                              <span className={`truncate font-bold ${isCenter ? 'text-lg' : 'text-sm'}`}>{p?.displayName || 'Ejemplo'}</span>
+                              <span className={`truncate font-bold ${isCenter ? 'text-lg' : 'text-sm'}`}>#{String(p?.assignedNumber || 0).padStart(3, '0')} - {p?.displayName || 'Ejemplo'}</span>
                             </div>
                           );
                         })}
@@ -814,7 +823,7 @@ export default function RafflePage() {
                               disabled={actionLoadingId === participant.id}
                               className="rounded-full border border-pink-100 bg-pink-50 px-4 py-2 text-sm font-semibold text-pink-600 transition hover:bg-pink-100 disabled:opacity-60"
                             >
-                              {actionLoadingId === participant.id ? 'Guardando...' : 'Elegir Manual'}
+                              {actionLoadingId === participant.id ? 'Guardando...' : 'Asignar Secreto'}
                             </button>
                           )}
 
@@ -892,12 +901,13 @@ export default function RafflePage() {
                   </div>
                 ) : (
                   occupiedNumbers.map((number) => (
-                    <span
+                    <button
                       key={number}
-                      className="rounded-full border border-pink-100 bg-[#fff7fb] px-4 py-2 text-sm font-semibold text-slate-700"
+                      onClick={() => handleSetSecretWinner(number)}
+                      className={`rounded-full border border-pink-100 bg-[#fff7fb] px-4 py-2 text-sm font-semibold text-slate-700 transition ${raffle?.isAdmin ? 'cursor-pointer hover:bg-pink-100 hover:text-pink-600' : 'cursor-default pointer-events-none'}`}
                     >
                       #{String(number).padStart(3, '0')}
-                    </span>
+                    </button>
                   ))
                 )}
               </div>
