@@ -853,9 +853,8 @@ function RaffleMain() {
         <div className="space-y-8">
           {canPickWinner && (
             <Card className="rounded-[2rem] p-6 border-4 border-indigo-100 bg-gradient-to-r from-blue-50 to-indigo-50">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-indigo-600 mb-4">Sorteo Especial (Al azar)</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-indigo-600 mb-4">Sorteo Especial</p>
               <Button disabled={actionLoadingId !== ''} onClick={handleConsolationDraw} className="bg-indigo-600 hover:bg-indigo-700 border-none shadow-md">Premio Consuelo</Button>
-              <p className="mt-3 text-xs text-slate-500">Este premio es netamente al azar (no manipulable) para regalar un premio menor de consolacion.</p>
             </Card>
           )}
 

@@ -108,6 +108,7 @@ export default function Home() {
         const currentUser = await getCurrentUser();
         setUser(currentUser);
         setShowModal(false);
+        router.push('/dashboard');
       } else {
         await register(formData.email, formData.password, formData.nombre);
         setModalType('login');
