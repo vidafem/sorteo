@@ -916,7 +916,7 @@ function RaffleMain() {
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#ec2aa4]">Participantes</p>
-                  <h2 className="mt-2 text-2xl font-bold text-slate-950"></h2>
+                  <h2 className="mt-2 text-2xl font-bold text-slate-950">.</h2>
                 </div>
                 {actualWinners.length > 0 && (
                   <div className="flex flex-col items-end gap-1">
