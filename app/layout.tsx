@@ -1,10 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
-
-const font = Inter({
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Supersorteo",
@@ -19,9 +14,9 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${font.className} h-full antialiased tracking-tight`}
+      className="h-full antialiased tracking-tight"
     >
-      <body className="min-h-full flex flex-col bg-[#fff7fb] text-slate-900">
+      <body className="min-h-full flex flex-col bg-[#fff7fb] text-slate-900" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
         {children}
       </body>
     </html>

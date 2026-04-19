@@ -58,7 +58,6 @@ function RaffleMain() {
   const [animationStyle, setAnimationStyle] = useState<'cards' | 'number'>('cards');
   const [rouletteParticipant, setRouletteParticipant] = useState<RaffleParticipant | null>(null);
   const [previewParticipant, setPreviewParticipant] = useState<RaffleParticipant | null>(null);
-  const [dummyParticipant, setDummyParticipant] = useState<RaffleParticipant | null>(null);
   const [animationDuration, setAnimationDuration] = useState(7);
   const [secretWinners, setSecretWinners] = useState<Record<number, string>>({});
   const [viewers, setViewers] = useState<string[]>([]);
@@ -257,28 +256,10 @@ function RaffleMain() {
     [raffle],
   );
 
-  // Lógica de la Ruleta y Revelación del Ganador (Secuencial 3, 2, 1)
   const [drawingPlace, setDrawingPlace] = useState<number>(1);
   const [animatingWinner, setAnimatingWinner] = useState<RaffleParticipant | null>(null);
   const [animatedWinnerIds, setAnimatedWinnerIds] = useState<Set<string>>(new Set());
   const [preDrawCountdown, setPreDrawCountdown] = useState<number | null>(null);
-
-  useEffect(() => {
-    const unAnimatedWinner = actualWinners.find(w => !animatedWinnerIds.has(w.id));
-    if (unAnimatedWinner && !showWinnerAnimation && !displayedWinner && !animationTimeoutRef.current && preDrawCountdown === null && !dummyParticipant) {
-      setDrawingPlace(unAnimatedWinner.place || 1);
-      setAnimatingWinner(unAnimatedWinner);
-      setHideWinnerOverlay(false);
-      setPreDrawCountdown(3); // Inicia el contador sincronizado de 3 segundos
-    } else if (actualWinners.length === 0) {
-      setDisplayedWinner(null);
-      setShowWinnerAnimation(false);
-      setHideWinnerOverlay(false);
-      setAnimatedWinnerIds(new Set());
-      setPreDrawCountdown(null);
-      setDummyParticipant(null);
-    }
-  }, [actualWinners, displayedWinner, showWinnerAnimation, animatedWinnerIds, preDrawCountdown, dummyParticipant]);
 
   useEffect(() => {
     if (preDrawCountdown !== null && preDrawCountdown > 0) {
@@ -288,18 +269,12 @@ function RaffleMain() {
       setPreDrawCountdown(null);
       setShowWinnerAnimation(true);
       
-      const target = dummyParticipant || animatingWinner;
-      if (!target) return;
-
       animationTimeoutRef.current = window.setTimeout(() => {
         setShowWinnerAnimation(false);
-        setDisplayedWinner(target);
-        
-        if (!dummyParticipant) {
-          setAnimatedWinnerIds(prev => new Set(prev).add(target.id));
-        }
+        setDisplayedWinner(animatingWinner);
+        setAnimatedWinnerIds(prev => new Set(prev).add(animatingWinner!.id));
           
-        if (target.place === 1 && !dummyParticipant) {
+        if (drawingPlace === 1) {
           playWinSound();
         } else {
           playLoseSound();
@@ -309,12 +284,12 @@ function RaffleMain() {
         animationTimeoutRef.current = window.setTimeout(() => {
           setHideWinnerOverlay(true);
           setDisplayedWinner(null);
-          setDummyParticipant(null);
+          setAnimatingWinner(null);
           animationTimeoutRef.current = null;
         }, 6000);
       }, animationDuration * 1000);
     }
-  }, [preDrawCountdown, animatingWinner, animationDuration, playWinSound, playLoseSound, dummyParticipant]);
+  }, [preDrawCountdown, animatingWinner, animationDuration, playWinSound, playLoseSound, drawingPlace]);
 
   useEffect(() => {
     return () => {
@@ -340,8 +315,7 @@ function RaffleMain() {
 
   // Animación de nombres para la Ruleta (comienza muy rápido y se va deteniendo)
   useEffect(() => {
-    const target = dummyParticipant || animatingWinner;
-    if (!showWinnerAnimation || !target || activeParticipantsRef.current.length === 0) return;
+    if (!showWinnerAnimation || !animatingWinner || activeParticipantsRef.current.length === 0) return;
 
     let timeoutId: number;
     const startTime = Date.now();
@@ -351,11 +325,11 @@ function RaffleMain() {
       const elapsed = Date.now() - startTime;
 
       if (elapsed >= duration) {
-        setRouletteParticipant(target);
+        setRouletteParticipant(animatingWinner);
         return;
       }
       
-      const pool = activeParticipantsRef.current.filter((p) => p.id !== target.id && !Object.values(secretWinners).includes(p.id));
+      const pool = activeParticipantsRef.current.filter((p) => p.id !== animatingWinner.id && !Object.values(secretWinners).includes(p.id));
       const safePool = pool.length > 0 ? pool : activeParticipantsRef.current;
       const randomIndex = Math.floor(Math.random() * safePool.length);
       
@@ -372,7 +346,7 @@ function RaffleMain() {
     timeoutId = window.setTimeout(tick, 20);
 
     return () => window.clearTimeout(timeoutId);
-  }, [showWinnerAnimation, animatingWinner, dummyParticipant, playTick, animationDuration, secretWinners]);
+  }, [showWinnerAnimation, animatingWinner, playTick, animationDuration, secretWinners]);
 
   // Mini-animación de nombres para la Sala de Espera
   useEffect(() => {
@@ -435,20 +409,31 @@ function RaffleMain() {
 
   const handleDraw = async (place: number) => {
     if (!raffle) return;
+    if (actualWinners.some(w => w.place === place)) return alert(`El ${place}º lugar ya fue sorteado.`);
     
     let selectedId = secretWinners[place];
-    const secretParticipant = activeParticipants.find(p => p.id === selectedId && p.status !== 'winner');
+    let targetWinner = activeParticipants.find(p => p.id === selectedId && p.status !== 'winner');
     
-    if (!secretParticipant) {
+    if (!targetWinner) {
       const eligible = activeParticipants.filter(p => p.status !== 'winner' && !Object.values(secretWinners).includes(p.id));
       if (eligible.length === 0) return alert("No hay participantes elegibles.");
-      selectedId = eligible[Math.floor(Math.random() * eligible.length)].id;
+      targetWinner = eligible[Math.floor(Math.random() * eligible.length)];
     }
 
     setActionLoadingId(`drawing-${place}`);
     try {
-      await selectWinnerForRaffle(raffle.id, selectedId, place);
-      await loadRaffle();
+      setDrawingPlace(place);
+      setAnimatingWinner(targetWinner);
+      setPreDrawCountdown(3);
+      setHideWinnerOverlay(false);
+
+      await supabase?.channel(`raffle_${raffle.id}`).send({
+        type: 'broadcast',
+        event: 'start_spin',
+        payload: { place, winner: targetWinner }
+      });
+
+      await selectWinnerForRaffle(raffle.id, targetWinner.id, place);
     } catch (err) {
       console.error(err);
     } finally {
@@ -456,14 +441,31 @@ function RaffleMain() {
     }
   };
 
-  const handleDummySpin = async () => {
-    if (!raffle || activeParticipants.length === 0) return alert("No hay participantes para girar.");
+  const handleConsolationDraw = async () => {
+    if (!raffle) return;
     const eligible = activeParticipants.filter(p => p.status !== 'winner' && !Object.values(secretWinners).includes(p.id));
-    if (eligible.length === 0) return alert("Todos han ganado o estan asignados.");
-    const randomId = eligible[Math.floor(Math.random() * eligible.length)].id;
+    if (eligible.length === 0) return alert("No hay participantes elegibles.");
+    const targetWinner = eligible[Math.floor(Math.random() * eligible.length)];
     
-    // Enviar broadcast a todos para que giren sincronizados
-    await supabase?.channel(`raffle_${raffle.id}`).send({ type: 'broadcast', event: 'dummy_spin', payload: { participantId: randomId } });
+    setActionLoadingId('drawing-consolation');
+    try {
+      setDrawingPlace(4);
+      setAnimatingWinner(targetWinner);
+      setPreDrawCountdown(3);
+      setHideWinnerOverlay(false);
+
+      await supabase?.channel(`raffle_${raffle.id}`).send({
+        type: 'broadcast',
+        event: 'start_spin',
+        payload: { place: 4, winner: targetWinner }
+      });
+
+      await selectWinnerForRaffle(raffle.id, targetWinner.id, 4);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActionLoadingId('');
+    }
   };
 
   const handleEliminateParticipant = async (participantId: string) => {
@@ -598,9 +600,8 @@ function RaffleMain() {
   }
 
   const targetParticipant = showWinnerAnimation ? rouletteParticipant : displayedWinner;
-  const placeText = dummyParticipant ? 'Giro al Agua' : (drawingPlace === 3 ? '3er Lugar' : drawingPlace === 2 ? '2do Lugar' : '1er Lugar');
-  const isFirstPlace = drawingPlace === 1 && !dummyParticipant;
-  const isDummy = !!dummyParticipant;
+  const placeText = drawingPlace === 4 ? 'Premio Consuelo' : (drawingPlace === 3 ? '3er Lugar' : drawingPlace === 2 ? '2do Lugar' : '1er Lugar');
+  const isFirstPlace = drawingPlace === 1;
   
   const isOverlayVisible = showWinnerAnimation || (displayedWinner && !hideWinnerOverlay) || preDrawCountdown !== null;
   
@@ -629,7 +630,6 @@ function RaffleMain() {
                   setDisplayedWinner(null);
                   setShowWinnerAnimation(false);
                   setPreDrawCountdown(null);
-                  setDummyParticipant(null);
                   if (animationTimeoutRef.current) {
                     clearTimeout(animationTimeoutRef.current);
                     animationTimeoutRef.current = null;
@@ -644,7 +644,7 @@ function RaffleMain() {
             {preDrawCountdown !== null ? (
               <div className="flex flex-col items-center justify-center py-10">
                 <p className="text-xl font-bold uppercase tracking-[0.3em] text-[#ec2aa4] mb-8 animate-pulse">
-                  {isDummy ? 'Comenzando Giro al Agua' : `Comenzando Sorteo del ${placeText}`}
+                  Comenzando Sorteo del {placeText}
                 </p>
                 <motion.div
                   key={preDrawCountdown}
@@ -659,7 +659,7 @@ function RaffleMain() {
             ) : (
               <>
                 <p className={`text-xl font-bold uppercase tracking-[0.3em] animate-pulse ${isFirstPlace ? 'text-yellow-500' : 'text-slate-400'}`}>
-                  {showWinnerAnimation ? `Sorteando ${placeText}...` : (isDummy ? '¡Ufff, casi! Suerte a la proxima' : (isFirstPlace ? '¡Gran Ganador!' : `¡${placeText}!`))}
+                  {showWinnerAnimation ? `Sorteando ${placeText}...` : (isFirstPlace ? '¡Gran Ganador!' : `¡${placeText}!`)}
                 </p>
 
                 {animationStyle === 'cards' && (
@@ -719,12 +719,12 @@ function RaffleMain() {
       <header className="border-b border-pink-100 bg-white/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            <button
-              onClick={() => router.push(raffle?.isStaff ? '/dashboard' : '/')}
-              className="self-start sm:self-auto rounded-full border border-pink-100 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-pink-50 shadow-sm"
+            <a
+              href={raffle?.isStaff ? '/dashboard' : '/'}
+              className="flex items-center justify-center self-start sm:self-auto rounded-full border border-pink-100 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-pink-50 shadow-sm"
             >
               Volver
-            </button>
+            </a>
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#ec2aa4]">Sorteo en vivo</p>
               <h1 className="mt-1 text-2xl sm:text-3xl font-bold text-slate-950 line-clamp-2">{raffle.title}</h1>
@@ -737,7 +737,18 @@ function RaffleMain() {
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Cuenta regresiva</p>
                 {raffle?.isStaff && (
-                  <button onClick={() => { setIsEditingTime(!isEditingTime); setEditTimeValue(raffle.drawAt ? new Date(raffle.drawAt).toISOString().slice(0,16) : ''); }} className="text-xs text-[#ec2aa4] font-bold hover:underline">Editar</button>
+                  <button onClick={() => { 
+                    setIsEditingTime(!isEditingTime); 
+                    if (raffle.drawAt) {
+                      const d = new Date(raffle.drawAt);
+                      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+                      setEditTimeValue(d.toISOString().slice(0,16));
+                    } else {
+                      setEditTimeValue('');
+                    }
+                  }} className="text-xs text-[#ec2aa4] font-bold hover:underline">
+                    {isEditingTime ? 'Cancelar' : 'Editar'}
+                  </button>
                 )}
               </div>
               {isEditingTime ? (
@@ -746,7 +757,16 @@ function RaffleMain() {
                   <button onClick={handleSaveTime} className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-200">OK</button>
                 </div>
               ) : (
-                <p className="mt-1 text-lg sm:text-xl font-bold text-slate-950">{countdownText}</p>
+                <>
+                  <p className="mt-1 text-lg sm:text-xl font-bold text-slate-950">{countdownText}</p>
+                  {raffle?.isStaff && (
+                    <div className="mt-2 flex gap-1">
+                      <button onClick={() => handleAddMinutes(5)} className="rounded bg-pink-50 px-2 py-1 text-[10px] font-bold text-pink-600 hover:bg-pink-100">+5 Min</button>
+                      <button onClick={() => handleAddMinutes(10)} className="rounded bg-pink-50 px-2 py-1 text-[10px] font-bold text-pink-600 hover:bg-pink-100">+10 Min</button>
+                      <button onClick={() => handleAddMinutes(15)} className="rounded bg-pink-50 px-2 py-1 text-[10px] font-bold text-pink-600 hover:bg-pink-100">+15 Min</button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
             <div className="rounded-[1.6rem] bg-white px-4 py-3 shadow-[0_22px_60px_-42px_rgba(190,24,93,0.4)] border border-pink-50 flex-1 min-w-[130px]">
@@ -833,9 +853,9 @@ function RaffleMain() {
         <div className="space-y-8">
           {canPickWinner && (
             <Card className="rounded-[2rem] p-6 border-4 border-indigo-100 bg-gradient-to-r from-blue-50 to-indigo-50">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-indigo-600 mb-4">Juegos de Prueba (Eliminación)</p>
-              <Button disabled={actionLoadingId !== ''} onClick={handleDummySpin} className="bg-indigo-600 hover:bg-indigo-700 border-none shadow-md">Giro al Agua (Sin Ganador)</Button>
-              <p className="mt-3 text-xs text-slate-500">Usa esto para girar la ruleta y descartar/asustar a alguien sin darle un premio.</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-indigo-600 mb-4">Sorteo Especial (Al azar)</p>
+              <Button disabled={actionLoadingId !== ''} onClick={handleConsolationDraw} className="bg-indigo-600 hover:bg-indigo-700 border-none shadow-md">Premio Consuelo</Button>
+              <p className="mt-3 text-xs text-slate-500">Este premio es netamente al azar (no manipulable) para regalar un premio menor de consolacion.</p>
             </Card>
           )}
 
@@ -958,8 +978,8 @@ function RaffleMain() {
 
                       <div className="flex shrink-0 items-center gap-2">
                         {participant.status === 'winner' && !showWinnerAnimation && (
-                          <span className="rounded-full bg-yellow-100 px-2 py-1 text-xs font-bold text-yellow-700">
-                            {participant.place}º
+                          <span className={`rounded-full px-2 py-1 text-xs font-bold ${participant.place === 4 ? 'bg-purple-100 text-purple-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                            {participant.place === 4 ? 'Premio Consuelo' : `${participant.place}º`}
                           </span>
                         )}
                         </div>

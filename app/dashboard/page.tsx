@@ -124,8 +124,15 @@ export default function Dashboard() {
         maxParticipants: formData.maxParticipants ? Number(formData.maxParticipants) : null,
       });
 
-      // Redirigir inmediatamente a la pantalla del sorteo para agregar participantes
-      router.push(`/raffle/${createdRaffle.raffleCode}`);
+      setFormData({
+        title: '',
+        description: '',
+        prizeName: '',
+        drawAt: '',
+        maxParticipants: null,
+      });
+      setShowCreateForm(false);
+      await loadDashboard();
     } catch (saveError: any) {
       setError(saveError?.message || 'No se pudo crear el sorteo.');
     } finally {
