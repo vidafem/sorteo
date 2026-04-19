@@ -646,10 +646,12 @@ function RaffleMain() {
               </>
             )}
 
-            {!showWinnerAnimation && raffle?.isAdmin && (
-              <Button onClick={() => { setHideWinnerOverlay(true); setDisplayedWinner(null); }} className="mt-10 px-10 py-4 text-lg rounded-full shadow-lg">
-                Continuar Sorteo
-              </Button>
+                {!showWinnerAnimation && raffle?.isAdmin && (
+                  <Button onClick={() => { setHideWinnerOverlay(true); setDisplayedWinner(null); }} className="mt-10 px-10 py-4 text-lg rounded-full shadow-lg">
+                    Continuar Sorteo
+                  </Button>
+                )}
+              </>
             )}
           </motion.div>
         </div>
