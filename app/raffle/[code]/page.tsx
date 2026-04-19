@@ -73,6 +73,7 @@ function RaffleMain() {
   const initialLoadRef = useRef(true);
   const animationTimeoutRef = useRef<number | null>(null);
   const activeParticipantsRef = useRef<RaffleParticipant[]>([]);
+  const channelRef = useRef<any>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isHoveringList, setIsHoveringList] = useState(false);
@@ -196,8 +197,9 @@ function RaffleMain() {
   useEffect(() => {
     if (!raffle?.id || !supabase) return;
 
-    const channel = supabase
-      .channel('realtime_raffle')
+    const channel = supabase.channel(`raffle_${raffle.id}`, {
+      config: { broadcast: { ack: true } }
+    })
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'raffle_participants', filter: `raffle_id=eq.${raffle.id}` },
@@ -427,7 +429,7 @@ function RaffleMain() {
       setPreDrawCountdown(3);
       setHideWinnerOverlay(false);
 
-      await supabase?.channel(`raffle_${raffle.id}`).send({
+      await channelRef.current?.send({
         type: 'broadcast',
         event: 'start_spin',
         payload: { place, winner: targetWinner }
@@ -454,7 +456,7 @@ function RaffleMain() {
       setPreDrawCountdown(3);
       setHideWinnerOverlay(false);
 
-      await supabase?.channel(`raffle_${raffle.id}`).send({
+      await channelRef.current?.send({
         type: 'broadcast',
         event: 'start_spin',
         payload: { place: 4, winner: targetWinner }
@@ -551,6 +553,7 @@ function RaffleMain() {
     const newDrawAt = new Date(currentDrawAt + minutes * 60000).toISOString();
     const { error } = await supabase.from('raffles').update({ draw_at: newDrawAt }).eq('id', raffle.id);
     if (!error) {
+      await channelRef.current?.send({ type: 'broadcast', event: 'time_updated', payload: { drawAt: newDrawAt } });
       setIsEditingTime(false);
       loadRaffle();
     } else {
@@ -563,6 +566,7 @@ function RaffleMain() {
     const val = editTimeValue ? new Date(editTimeValue).toISOString() : null;
     const { error } = await supabase.from('raffles').update({ draw_at: val }).eq('id', raffle.id);
     if (!error) {
+      await channelRef.current?.send({ type: 'broadcast', event: 'time_updated', payload: { drawAt: val } });
       setIsEditingTime(false);
       loadRaffle();
     } else {
