@@ -74,6 +74,11 @@ function RaffleMain() {
   const animationTimeoutRef = useRef<number | null>(null);
   const activeParticipantsRef = useRef<RaffleParticipant[]>([]);
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isHoveringList, setIsHoveringList] = useState(false);
+  const [isEditingTime, setIsEditingTime] = useState(false);
+  const [editTimeValue, setEditTimeValue] = useState('');
+
   useEffect(() => {
     if (raffle?.id) {
       const stored = localStorage.getItem(`secret_winners_${raffle.id}`);
@@ -334,6 +339,20 @@ function RaffleMain() {
     return () => clearInterval(interval);
   }, [activeParticipants.length]);
 
+  // Auto-scroll de participantes
+  useEffect(() => {
+    if (!scrollRef.current || isHoveringList || activeParticipantsRef.current.length === 0) return;
+    const interval = setInterval(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop += 1;
+        if (scrollRef.current.scrollTop + scrollRef.current.clientHeight >= scrollRef.current.scrollHeight - 1) {
+          scrollRef.current.scrollTop = 0;
+        }
+      }
+    }, 50);
+    return () => clearInterval(interval);
+  }, [isHoveringList]);
+
   // Animación continua para la Vista Previa
   useEffect(() => {
     const listToUse = activeParticipants.length > 0 ? activeParticipants : [
@@ -483,6 +502,18 @@ function RaffleMain() {
     }
   };
 
+  const handleSaveTime = async () => {
+    if (!raffle) return;
+    const val = editTimeValue ? new Date(editTimeValue).toISOString() : null;
+    const { error } = await supabase.from('raffles').update({ draw_at: val }).eq('id', raffle.id);
+    if (!error) {
+      setIsEditingTime(false);
+      loadRaffle();
+    } else {
+      alert("Error al actualizar la fecha");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#fff7fb]">
@@ -609,32 +640,44 @@ function RaffleMain() {
 
       <header className="border-b border-pink-100 bg-white/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <button
-              onClick={() => router.push('/')}
-              className="rounded-full border border-pink-100 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-pink-50"
+              onClick={() => router.push(raffle?.isStaff ? '/dashboard' : '/')}
+              className="self-start sm:self-auto rounded-full border border-pink-100 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-pink-50 shadow-sm"
             >
               Volver
             </button>
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#ec2aa4]">Sorteo en vivo</p>
-              <h1 className="mt-2 text-3xl font-bold text-slate-950">{raffle.title}</h1>
+              <h1 className="mt-1 text-2xl sm:text-3xl font-bold text-slate-950 line-clamp-2">{raffle.title}</h1>
               <p className="mt-1 text-sm text-slate-500">Codigo compartible: {raffle.raffleCode} • Premio: {raffle.prizeName || 'Sorpresa'}</p>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <div className="rounded-[1.6rem] bg-white px-5 py-4 shadow-[0_22px_60px_-42px_rgba(190,24,93,0.4)]">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Cuenta regresiva</p>
-              <p className="mt-2 text-xl font-bold text-slate-950">{countdownText}</p>
+          <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
+            <div className="rounded-[1.6rem] bg-white px-4 py-3 shadow-[0_22px_60px_-42px_rgba(190,24,93,0.4)] flex-1 min-w-[150px] border border-pink-50">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Cuenta regresiva</p>
+                {raffle?.isStaff && (
+                  <button onClick={() => { setIsEditingTime(!isEditingTime); setEditTimeValue(raffle.drawAt ? new Date(raffle.drawAt).toISOString().slice(0,16) : ''); }} className="text-xs text-[#ec2aa4] font-bold hover:underline">Editar</button>
+                )}
+              </div>
+              {isEditingTime ? (
+                <div className="mt-2 flex items-center gap-2">
+                  <input type="datetime-local" value={editTimeValue} onChange={e => setEditTimeValue(e.target.value)} className="w-full text-xs rounded-lg border border-pink-100 bg-slate-50 p-1.5 outline-none" />
+                  <button onClick={handleSaveTime} className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-200">OK</button>
+                </div>
+              ) : (
+                <p className="mt-1 text-lg sm:text-xl font-bold text-slate-950">{countdownText}</p>
+              )}
             </div>
-            <div className="rounded-[1.6rem] bg-white px-5 py-4 shadow-[0_22px_60px_-42px_rgba(190,24,93,0.4)] border border-pink-50">
+            <div className="rounded-[1.6rem] bg-white px-4 py-3 shadow-[0_22px_60px_-42px_rgba(190,24,93,0.4)] border border-pink-50 flex-1 min-w-[130px]">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#ec2aa4]">Espectadores</p>
-              <p className="mt-2 text-xl font-bold text-slate-950 flex items-center gap-2"><span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span> {viewers.length}</p>
+              <p className="mt-1 text-lg sm:text-xl font-bold text-slate-950 flex items-center gap-2"><span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span> {viewers.length}</p>
             </div>
-            <div className="rounded-[1.6rem] bg-white px-5 py-4 shadow-[0_22px_60px_-42px_rgba(190,24,93,0.4)]">
+            <div className="rounded-[1.6rem] bg-white px-4 py-3 shadow-[0_22px_60px_-42px_rgba(190,24,93,0.4)] border border-pink-50 flex-1 min-w-[130px]">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Participantes</p>
-              <p className="mt-2 text-xl font-bold text-slate-950">{activeParticipants.length}</p>
+              <p className="mt-1 text-lg sm:text-xl font-bold text-slate-950">{activeParticipants.length}</p>
             </div>
           </div>
         </div>
@@ -713,15 +756,15 @@ function RaffleMain() {
           {raffle?.isStaff && (
             <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
               <div className="mb-6 flex flex-col gap-3 rounded-[1.5rem] border border-pink-100 bg-white p-5 shadow-[0_8px_30px_-20px_rgba(190,24,93,0.15)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#ec2aa4]">Visualizacion (Solo Staff)</p>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#ec2aa4]">Visualizacion</p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="text-base font-bold text-slate-900">¿Como deseas ver el sorteo?</h2>
-                  <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                      Segundos:
-                      <input type="number" min="3" max="20" value={animationDuration} onChange={e => setAnimationDuration(Number(e.target.value))} className="w-14 rounded-lg border border-pink-100 bg-[#fff9fc] px-2 py-1 text-center outline-none focus:border-pink-300" />
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-500 whitespace-nowrap">
+                      Tiempo que dura el sorteo:
+                      <input type="number" min="3" max="20" value={animationDuration} onChange={e => setAnimationDuration(Number(e.target.value))} className="w-16 rounded-lg border border-pink-100 bg-[#fff9fc] px-2 py-1 text-center outline-none focus:border-pink-300" />
                     </label>
-                    <div className="flex flex-wrap gap-1 rounded-full border border-pink-100 bg-pink-50/50 p-1">
+                    <div className="flex flex-wrap gap-1 rounded-full border border-pink-100 bg-pink-50/50 p-1 self-start sm:self-auto">
                     {[
                       { id: 'cards', label: 'Tarjetas', icon: '📇' },
                       { id: 'number', label: 'Solo Numero', icon: '🔢' }
@@ -812,55 +855,38 @@ function RaffleMain() {
                       initial={{ opacity: 0, scale: 0.95, x: -12 }}
                       animate={{ opacity: 1, scale: 1, x: 0 }}
                       transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                      className="rounded-[1.5rem] border border-pink-100 bg-white p-4 shadow-sm"
+                      className="flex items-center justify-between gap-3 rounded-[1.2rem] border border-pink-100 bg-white p-2.5 shadow-sm"
                     >
-                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-pink-50 text-sm font-bold text-[#ec2aa4]">
-                            {String(participant.assignedNumber).padStart(2, '0')}
-                          </div>
-                          <div>
-                            <div className="text-lg font-semibold text-slate-950">{participant.displayName}</div>
-                            <div className="text-sm text-slate-500">
-                              Numero #{String(participant.assignedNumber).padStart(3, '0')}
-                            </div>
-                          </div>
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <button
+                          onClick={() => handleSetSecretWinner(participant.assignedNumber)}
+                          title={canSetSecret ? "Asignar ganador secreto" : ""}
+                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-pink-50 text-sm font-bold text-[#ec2aa4] transition ${canSetSecret ? 'cursor-pointer hover:bg-pink-100 hover:scale-105' : 'cursor-default pointer-events-none'}`}
+                        >
+                          {String(participant.assignedNumber).padStart(2, '0')}
+                        </button>
+                        <div className="truncate text-base font-semibold text-slate-950 max-w-[140px] sm:max-w-[220px]">
+                          {participant.displayName}
                         </div>
+                      </div>
 
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${
-                              participant.status === 'winner' && !showWinnerAnimation
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : participant.status === 'eliminated'
-                                  ? 'bg-rose-100 text-rose-700'
-                                  : 'bg-slate-100 text-slate-600'
-                            }`}
-                          >
-                            {participant.status === 'winner' && !showWinnerAnimation ? `Ganador ${participant.place}º` : (participant.status === 'winner' ? 'active' : participant.status)}
+                      <div className="flex shrink-0 items-center gap-2">
+                        {participant.status === 'winner' && !showWinnerAnimation && (
+                          <span className="rounded-full bg-yellow-100 px-2 py-1 text-xs font-bold text-yellow-700">
+                            {participant.place}º
                           </span>
-
-                          {canPickWinner && participant.status !== 'winner' && participant.status !== 'eliminated' && (
-                            <button
-                              onClick={() => handleManualSelectWinner(participant.id)}
-                              disabled={actionLoadingId === participant.id}
-                              className="rounded-full border border-pink-100 bg-pink-50 px-4 py-2 text-sm font-semibold text-pink-600 transition hover:bg-pink-100 disabled:opacity-60"
-                            >
-                              {actionLoadingId === participant.id ? 'Guardando...' : 'Asignar Secreto'}
-                            </button>
-                          )}
+                        )}
 
                           {canEliminate && participant.status === 'active' && (
                             <button
                               onClick={() => handleEliminateParticipant(participant.id)}
                               disabled={actionLoadingId === participant.id}
-                              className="rounded-full bg-rose-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-600 disabled:opacity-60"
+                              className="rounded-full bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-100 disabled:opacity-60"
                             >
-                              {actionLoadingId === participant.id ? 'Guardando...' : 'Eliminar'}
+                              {actionLoadingId === participant.id ? '...' : 'Eliminar'}
                             </button>
                           )}
                         </div>
-                      </div>
                     </motion.div>
                   ))
                 )}
@@ -872,18 +898,18 @@ function RaffleMain() {
         <div className="space-y-8">
           {raffle?.isStaff && (
             <Card className="rounded-[2rem] p-6 shadow-sm border border-pink-100">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#ec2aa4]">Registro Manual (Solo Staff)</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#ec2aa4]">Registro Manual</p>
               <h2 className="mt-2 text-2xl font-bold text-slate-950">Agregar participantes</h2>
-              <form onSubmit={handleAddParticipant} className="mt-4 grid gap-4 items-start">
+              <form onSubmit={handleAddParticipant} className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end">
                 <label className="block text-sm font-medium text-slate-700">
                   Nombre del jugador
                   <input type="text" value={addName} onChange={(e) => setAddName(e.target.value)} className="mt-2 w-full rounded-xl border border-pink-100 bg-[#fff9fc] px-4 py-3 outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100" placeholder="Ej: Maria Lopez" />
                 </label>
                 <label className="block text-sm font-medium text-slate-700">
                   Numeros (separados por coma)
-                  <input type="text" value={addNumbers} onChange={(e) => setAddNumbers(e.target.value)} className="mt-2 w-full rounded-xl border border-pink-100 bg-[#fff9fc] px-4 py-3 outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100" placeholder="Ej: 5, 12, 45" />
+                  <input type="text" value={addNumbers} onChange={(e) => setAddNumbers(e.target.value)} className="mt-2 w-full sm:w-48 rounded-xl border border-pink-100 bg-[#fff9fc] px-4 py-3 outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100" placeholder="Ej: 5, 12" />
                 </label>
-                <Button type="submit" disabled={adding} className="mt-2 h-12 w-full px-6 py-2 text-sm">
+                <Button type="submit" disabled={adding} className="h-12 w-full sm:w-auto px-6 py-2 text-sm shrink-0">
                   {adding ? 'Agregando...' : 'Agregar Participantes'}
                 </Button>
               </form>
@@ -899,43 +925,6 @@ function RaffleMain() {
               )}
             </Card>
           )}
-
-          <motion.div initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }}>
-            <Card className="rounded-[2rem] p-6">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#ec2aa4]">Numeros ocupados</p>
-              <h2 className="mt-2 text-2xl font-bold text-slate-950">Vista rapida de ocupacion</h2>
-
-              {activeParticipants.length > 0 && (
-                <div className="mt-4 flex items-center gap-3 rounded-[1.2rem] bg-pink-50/50 px-4 py-3 border border-pink-100/50">
-                  <span className="relative flex h-3 w-3">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#ec2aa4] opacity-75"></span>
-                    <span className="relative inline-flex h-3 w-3 rounded-full bg-[#ec2aa4]"></span>
-                  </span>
-                  <p className="text-sm font-medium text-slate-600">
-                    En sala: <strong className="text-slate-900">{activeParticipants[currentAnimatedNameIndex]?.displayName}</strong>
-                  </p>
-                </div>
-              )}
-
-              <div className="mt-5 flex max-h-60 flex-wrap gap-2 overflow-y-auto">
-                {occupiedNumbers.length === 0 ? (
-                  <div className="rounded-[1.4rem] bg-[#fff7fb] px-4 py-4 text-sm text-slate-500">
-                    Aun no hay numeros reservados.
-                  </div>
-                ) : (
-                  occupiedNumbers.map((number) => (
-                    <button
-                      key={number}
-                      onClick={() => handleSetSecretWinner(number)}
-                      className={`rounded-full border border-pink-100 bg-[#fff7fb] px-4 py-2 text-sm font-semibold text-slate-700 transition ${raffle?.isAdmin ? 'cursor-pointer hover:bg-pink-100 hover:text-pink-600' : 'cursor-default pointer-events-none'}`}
-                    >
-                      #{String(number).padStart(3, '0')}
-                    </button>
-                  ))
-                )}
-              </div>
-            </Card>
-          </motion.div>
 
           <motion.div initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
             <Card className="rounded-[2rem] p-6">
