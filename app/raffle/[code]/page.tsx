@@ -264,7 +264,7 @@ function RaffleMain() {
 
   const [drawingPlace, setDrawingPlace] = useState<number>(1);
   const [animatingWinner, setAnimatingWinner] = useState<RaffleParticipant | null>(null);
-  const [animatedWinnerIds, setAnimatedWinnerIds] = useState<Set<string>>(new Set());
+  const [revealedPlaces, setRevealedPlaces] = useState<Set<number>>(new Set());
   const [preDrawCountdown, setPreDrawCountdown] = useState<number | null>(null);
 
   useEffect(() => {
