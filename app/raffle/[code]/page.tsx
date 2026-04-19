@@ -871,37 +871,11 @@ function RaffleMain() {
               <div className="mb-6 flex flex-col gap-3 rounded-[1.5rem] border border-pink-100 bg-white p-5 shadow-[0_8px_30px_-20px_rgba(190,24,93,0.15)]">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#ec2aa4]">Visualizacion</p>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="text-base font-bold text-slate-900">¿Como deseas ver el sorteo?</h2>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-500 whitespace-nowrap">
-                      Tiempo que dura el sorteo:
-                      <input type="number" min="3" max="20" value={animationDuration} onChange={e => setAnimationDuration(Number(e.target.value))} className="w-16 rounded-lg border border-pink-100 bg-[#fff9fc] px-2 py-1 text-center outline-none focus:border-pink-300" />
-                    </label>
-                    <div className="flex flex-wrap gap-1 rounded-full border border-pink-100 bg-pink-50/50 p-1 self-start sm:self-auto">
-                    {[
-                      { id: 'cards', label: 'Tarjetas', icon: '📇' },
-                      { id: 'number', label: 'Solo Numero', icon: '🔢' }
-                    ].map((mode) => (
-                      <button
-                        key={mode.id}
-                        onClick={() => setAnimationStyle(mode.id as any)}
-                        className="relative flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold outline-none transition-colors"
-                      >
-                        {animationStyle === mode.id && (
-                          <motion.div
-                            layoutId="activeTabMode"
-                            className="absolute inset-0 rounded-full bg-[#ec2aa4] shadow-sm"
-                            transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                          />
-                        )}
-                        <span className={`relative z-10 flex items-center gap-2 ${animationStyle === mode.id ? 'text-white' : 'text-slate-500 hover:text-pink-600'}`}>
-                          <motion.span animate={animationStyle === mode.id ? { rotate: [0, -15, 15, 0], scale: [1, 1.3, 1] } : {}} transition={{ duration: 0.4 }}>{mode.icon}</motion.span>
-                          {mode.label}
-                        </span>
-                      </button>
-                    ))}
-                    </div>
-                  </div>
+                <h2 className="text-base font-bold text-slate-900">Configuración de Sorteo</h2>
+                <label className="flex items-center gap-2 text-xs font-semibold text-slate-500 whitespace-nowrap">
+                  Tiempo que dura el sorteo:
+                  <input type="number" min="3" max="20" value={animationDuration} onChange={e => setAnimationDuration(Number(e.target.value))} className="w-16 rounded-lg border border-pink-100 bg-[#fff9fc] px-2 py-1 text-center outline-none focus:border-pink-300" />
+                </label>
                 </div>
                 
                 <div className="mt-5 flex h-36 w-full items-center justify-center rounded-2xl bg-slate-950 overflow-hidden relative shadow-inner">
