@@ -556,6 +556,18 @@ function RaffleMain() {
     }
   };
 
+  const handleSaveTime = async () => {
+    if (!raffle || !supabase) return;
+    const val = editTimeValue ? new Date(editTimeValue).toISOString() : null;
+    const { error } = await supabase.from('raffles').update({ draw_at: val }).eq('id', raffle.id);
+    if (!error) {
+      setIsEditingTime(false);
+      loadRaffle();
+    } else {
+      alert("Error al actualizar la fecha");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#fff7fb]">
