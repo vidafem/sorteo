@@ -502,7 +502,7 @@ function RaffleMain() {
   };
 
   const handleSaveTime = async () => {
-    if (!raffle) return;
+    if (!raffle || !supabase) return;
     const val = editTimeValue ? new Date(editTimeValue).toISOString() : null;
     const { error } = await supabase.from('raffles').update({ draw_at: val }).eq('id', raffle.id);
     if (!error) {
