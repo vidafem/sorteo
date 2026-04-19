@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
+const font = Outfit({
   subsets: ["latin"],
 });
 
@@ -19,9 +19,9 @@ export default function RootLayout({
   return (
     <html
       lang="es"
-      className={`${inter.className} h-full antialiased bg-black`}
+      className={`${font.className} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-gradient-to-br from-black via-gray-900 to-red-900">
+      <body className="min-h-full flex flex-col bg-[#fff7fb] text-slate-900">
         {children}
       </body>
     </html>

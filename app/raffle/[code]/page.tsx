@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState, useRef, Suspense } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { motion } from 'framer-motion';
@@ -38,9 +38,11 @@ const getStatusLabel = (status: string) => {
   }
 };
 
-export default function RafflePage() {
+function RaffleMain() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const viewerName = searchParams.get('viewer');
   const { width, height } = useWindowSize();
   const code = String(params.code || '');
 
@@ -58,6 +60,7 @@ export default function RafflePage() {
   const [previewParticipant, setPreviewParticipant] = useState<RaffleParticipant | null>(null);
   const [animationDuration, setAnimationDuration] = useState(7);
   const [secretWinners, setSecretWinners] = useState<Record<number, string>>({});
+  const [viewers, setViewers] = useState<string[]>([]);
 
   // Estado para el formulario manual
   const [addName, setAddName] = useState('');
@@ -182,10 +185,24 @@ export default function RafflePage() {
       )
       .subscribe();
 
+    const presenceChannel = supabase.channel(`presence_${raffle.id}`);
+    presenceChannel.on('presence', { event: 'sync' }, () => {
+      const state = presenceChannel.presenceState();
+      const activeViewers = Object.values(state).flatMap((clients: any[]) => clients.map((c) => c.viewerName));
+      setViewers([...new Set(activeViewers)].filter(Boolean));
+    });
+
+    presenceChannel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED' && viewerName) {
+        await presenceChannel.track({ viewerName });
+      }
+    });
+
     return () => {
       void supabase?.removeChannel(channel);
+      void supabase?.removeChannel(presenceChannel);
     };
-  }, [raffle?.id, loadRaffle]);
+  }, [raffle?.id, loadRaffle, viewerName]);
 
   const timeDifference = useMemo(() => {
     if (!raffle?.drawAt) return null;
@@ -349,7 +366,8 @@ export default function RafflePage() {
     return listToUse[idx];
   }, [activeParticipants]);
 
-  const canPickWinner = Boolean(raffle?.isAdmin);
+  const canPickWinner = Boolean(raffle?.isStaff);
+  const canSetSecret = Boolean(raffle?.isAdmin);
   const canEliminate = Boolean(raffle?.staffAccess?.canManageRaffle || raffle?.staffAccess?.canEliminateParticipants);
 
   const handleManualSelectWinner = async (participantId: string) => {
@@ -373,7 +391,7 @@ export default function RafflePage() {
     
     if (!secretParticipant) {
       const eligible = activeParticipants.filter(p => p.status !== 'winner' && !Object.values(secretWinners).includes(p.id));
-      if (eligible.length === 0) return alert("No hay participantes elegibles para sortear.");
+      if (eligible.length === 0) return alert("No hay participantes elegibles.");
       selectedId = eligible[Math.floor(Math.random() * eligible.length)].id;
     }
 
@@ -451,7 +469,7 @@ export default function RafflePage() {
   };
 
   const handleSetSecretWinner = (number: number) => {
-    if (!raffle?.isAdmin) return;
+    if (!canSetSecret) return;
     const placeStr = prompt(`(Oculto Admin) Ingresa el lugar que ganará el número #${number} (1, 2 o 3):\nDeja en blanco para cancelar.`);
     if (!placeStr) return;
     const place = parseInt(placeStr, 10);
@@ -514,7 +532,7 @@ export default function RafflePage() {
           <motion.div
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className={`relative flex w-full max-w-2xl flex-col items-center justify-center rounded-[3rem] border ${isFirstPlace ? 'border-yellow-400/50 shadow-[0_0_100px_-20px_rgba(250,204,21,0.5)]' : 'border-slate-500/30 shadow-[0_0_100px_-20px_rgba(148,163,184,0.4)]'} ${animationStyle === 'cards' ? 'bg-transparent border-none shadow-none' : 'bg-white p-10'} text-center transition-colors duration-700`}
+            className={`relative flex w-full max-w-2xl flex-col items-center justify-center rounded-[3rem] border ${isFirstPlace ? 'border-yellow-400/50 shadow-[0_0_100px_-20px_rgba(250,204,21,0.5)]' : 'border-slate-300/50 shadow-[0_0_100px_-20px_rgba(148,163,184,0.2)] filter grayscale-[40%]'} ${animationStyle === 'cards' ? 'bg-transparent border-none shadow-none' : 'bg-white p-10'} text-center transition-all duration-700`}
           >
             {raffle?.isAdmin && (
               <button
@@ -563,7 +581,7 @@ export default function RafflePage() {
                               {p?.displayName?.charAt(0).toUpperCase() || '?'}
                             </div>
                           )}
-                          <span className={`truncate font-bold ${isCenter ? 'text-3xl' : 'text-xl'}`}>#{String(p?.assignedNumber || 0).padStart(3, '0')} - {p?.displayName || '???'}</span>
+                          <span className={`truncate font-bold ${isCenter ? 'text-3xl' : 'text-xl'}`}>#{String(p?.assignedNumber || 0).padStart(3, '0')} - {p?.displayName || '...'}</span>
                         </div>
                       );
                     })}
@@ -610,6 +628,10 @@ export default function RafflePage() {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Cuenta regresiva</p>
               <p className="mt-2 text-xl font-bold text-slate-950">{countdownText}</p>
             </div>
+            <div className="rounded-[1.6rem] bg-white px-5 py-4 shadow-[0_22px_60px_-42px_rgba(190,24,93,0.4)] border border-pink-50">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#ec2aa4]">Espectadores</p>
+              <p className="mt-2 text-xl font-bold text-slate-950 flex items-center gap-2"><span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span> {viewers.length}</p>
+            </div>
             <div className="rounded-[1.6rem] bg-white px-5 py-4 shadow-[0_22px_60px_-42px_rgba(190,24,93,0.4)]">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Participantes</p>
               <p className="mt-2 text-xl font-bold text-slate-950">{activeParticipants.length}</p>
@@ -642,7 +664,7 @@ export default function RafflePage() {
             <h2 className="absolute top-8 text-2xl md:text-3xl font-black uppercase tracking-widest text-slate-800">Podio de Ganadores</h2>
             <div className="flex items-end justify-center gap-2 sm:gap-8 w-full max-w-3xl">
               {/* Segundo Lugar */}
-              <div className={`flex flex-col items-center justify-end w-1/3 ${raffle?.isAdmin && !winner2 && !actionLoadingId ? 'cursor-pointer hover:opacity-80 transition' : ''}`} onClick={() => { if (raffle?.isAdmin && !winner2 && !actionLoadingId) handleDraw(2); }}>
+              <div className={`flex flex-col items-center justify-end w-1/3 ${canPickWinner && !winner2 && !actionLoadingId ? 'cursor-pointer hover:opacity-80 hover:-translate-y-2 transition-all duration-300' : ''}`} onClick={() => { if (canPickWinner && !winner2 && !actionLoadingId) handleDraw(2); }}>
                 <div className="mb-4 text-center h-16 flex flex-col justify-end">
                   {winner2 ? (
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -650,13 +672,13 @@ export default function RafflePage() {
                       <div className="text-sm md:text-base font-bold text-slate-600 truncate w-24 sm:w-36">{winner2.displayName}</div>
                     </motion.div>
                   ) : (
-                    <div className="text-sm font-semibold text-slate-400">{raffle?.isAdmin ? (actionLoadingId === 'drawing-2' ? 'Sorteando...' : 'Haz clic para sortear') : 'Por sortear'}</div>
+                    <div className="text-sm font-semibold text-slate-400">{canPickWinner ? (actionLoadingId === 'drawing-2' ? 'Sorteando...' : 'Haz clic para sortear') : 'Por sortear'}</div>
                   )}
                 </div>
                 <motion.div initial={{ height: 0 }} animate={{ height: 160 }} className="w-full rounded-t-2xl shadow-[inset_0_4px_10px_rgba(255,255,255,0.5)] flex justify-center pt-4 text-4xl font-black text-white drop-shadow-md bg-gradient-to-b from-slate-400 to-slate-500">2</motion.div>
               </div>
               {/* Primer Lugar */}
-              <div className={`flex flex-col items-center justify-end w-1/3 ${raffle?.isAdmin && !winner1 && !actionLoadingId ? 'cursor-pointer hover:opacity-80 transition' : ''}`} onClick={() => { if (raffle?.isAdmin && !winner1 && !actionLoadingId) handleDraw(1); }}>
+              <div className={`flex flex-col items-center justify-end w-1/3 ${canPickWinner && !winner1 && !actionLoadingId ? 'cursor-pointer hover:opacity-80 hover:-translate-y-2 transition-all duration-300' : ''}`} onClick={() => { if (canPickWinner && !winner1 && !actionLoadingId) handleDraw(1); }}>
                 <div className="mb-4 text-center h-16 flex flex-col justify-end">
                   {winner1 ? (
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -664,13 +686,13 @@ export default function RafflePage() {
                       <div className="text-base md:text-lg font-bold text-slate-800 truncate w-28 sm:w-40">{winner1.displayName}</div>
                     </motion.div>
                   ) : (
-                    <div className="text-sm font-semibold text-slate-400">{raffle?.isAdmin ? (actionLoadingId === 'drawing-1' ? 'Sorteando...' : 'Haz clic para sortear') : 'Por sortear'}</div>
+                    <div className="text-sm font-semibold text-slate-400">{canPickWinner ? (actionLoadingId === 'drawing-1' ? 'Sorteando...' : 'Haz clic para sortear') : 'Por sortear'}</div>
                   )}
                 </div>
                 <motion.div initial={{ height: 0 }} animate={{ height: 240 }} className="w-full rounded-t-2xl shadow-[inset_0_4px_10px_rgba(255,255,255,0.5)] flex justify-center pt-4 text-5xl font-black text-white drop-shadow-md bg-gradient-to-b from-yellow-400 to-yellow-600 border-x border-t border-yellow-300">1</motion.div>
               </div>
               {/* Tercer Lugar */}
-              <div className={`flex flex-col items-center justify-end w-1/3 ${raffle?.isAdmin && !winner3 && !actionLoadingId ? 'cursor-pointer hover:opacity-80 transition' : ''}`} onClick={() => { if (raffle?.isAdmin && !winner3 && !actionLoadingId) handleDraw(3); }}>
+              <div className={`flex flex-col items-center justify-end w-1/3 ${canPickWinner && !winner3 && !actionLoadingId ? 'cursor-pointer hover:opacity-80 hover:-translate-y-2 transition-all duration-300' : ''}`} onClick={() => { if (canPickWinner && !winner3 && !actionLoadingId) handleDraw(3); }}>
                 <div className="mb-4 text-center h-16 flex flex-col justify-end">
                   {winner3 ? (
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -678,7 +700,7 @@ export default function RafflePage() {
                       <div className="text-sm md:text-base font-bold text-slate-600 truncate w-24 sm:w-36">{winner3.displayName}</div>
                     </motion.div>
                   ) : (
-                    <div className="text-sm font-semibold text-slate-400">{raffle?.isAdmin ? (actionLoadingId === 'drawing-3' ? 'Sorteando...' : 'Haz clic para sortear') : 'Por sortear'}</div>
+                    <div className="text-sm font-semibold text-slate-400">{canPickWinner ? (actionLoadingId === 'drawing-3' ? 'Sorteando...' : 'Haz clic para sortear') : 'Por sortear'}</div>
                   )}
                 </div>
                 <motion.div initial={{ height: 0 }} animate={{ height: 110 }} className="w-full rounded-t-2xl shadow-[inset_0_4px_10px_rgba(255,255,255,0.3)] flex justify-center pt-3 text-3xl font-black text-white drop-shadow-md bg-gradient-to-b from-orange-400 to-orange-600">3</motion.div>
@@ -786,10 +808,11 @@ export default function RafflePage() {
                   raffle.participants.map((participant, index) => (
                     <motion.div
                       key={participant.id}
-                      initial={{ opacity: 0, x: -12 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.04 }}
-                      className="rounded-[1.5rem] border border-pink-100 bg-white p-4"
+                      layout
+                      initial={{ opacity: 0, scale: 0.95, x: -12 }}
+                      animate={{ opacity: 1, scale: 1, x: 0 }}
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                      className="rounded-[1.5rem] border border-pink-100 bg-white p-4 shadow-sm"
                     >
                       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div className="flex items-center gap-4">
@@ -913,8 +936,34 @@ export default function RafflePage() {
               </div>
             </Card>
           </motion.div>
+
+          <motion.div initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
+            <Card className="rounded-[2rem] p-6">
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#ec2aa4]">En Linea</p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-950">Espectadores conectados</h2>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {viewers.length === 0 ? (
+                  <p className="text-sm text-slate-500">Nadie conectado aun.</p>
+                ) : (
+                  viewers.map((v, i) => <span key={i} className="rounded-full bg-blue-50 text-blue-600 px-3 py-1 text-sm font-medium">{v}</span>)
+                )}
+              </div>
+            </Card>
+          </motion.div>
         </div>
       </main>
     </div>
+  );
+}
+
+export default function RafflePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-[#fff7fb]">
+        <div className="h-20 w-20 animate-spin rounded-full border-4 border-pink-100 border-t-[#ec2aa4]" />
+      </div>
+    }>
+      <RaffleMain />
+    </Suspense>
   );
 }

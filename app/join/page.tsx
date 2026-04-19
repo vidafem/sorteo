@@ -9,6 +9,7 @@ import { getRaffleByCode } from '@/lib/queries';
 
 export default function JoinRaffle() {
   const [code, setCode] = useState('');
+  const [viewerName, setViewerName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
@@ -18,6 +19,10 @@ export default function JoinRaffle() {
 
     if (!code.trim()) {
       setError('Por favor ingresa un codigo valido.');
+      return;
+    }
+    if (!viewerName.trim()) {
+      setError('Por favor ingresa tu nombre de espectador.');
       return;
     }
 
@@ -32,7 +37,7 @@ export default function JoinRaffle() {
         return;
       }
 
-      router.push(`/raffle/${raffle.raffleCode}`);
+      router.push(`/raffle/${raffle.raffleCode}?viewer=${encodeURIComponent(viewerName.trim())}`);
     } catch (joinError: any) {
       setError(joinError?.message || 'No se pudo validar el codigo del sorteo.');
     } finally {
@@ -60,6 +65,18 @@ export default function JoinRaffle() {
           </div>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+            <label className="block text-sm font-medium text-slate-700">
+              Tu Nombre (Como espectador)
+              <input
+                type="text"
+                value={viewerName}
+                onChange={(event) => setViewerName(event.target.value)}
+                placeholder="Ej: Juan Perez"
+                className="mt-2 w-full rounded-[1.6rem] border border-pink-100 bg-[#fff9fc] px-5 py-4 text-center text-xl font-bold text-slate-900 outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100"
+                required
+              />
+            </label>
+
             <label className="block text-sm font-medium text-slate-700">
               Codigo del sorteo
               <input
