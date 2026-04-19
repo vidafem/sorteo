@@ -1,18 +1,20 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { motion } from 'framer-motion';
 import { getRaffleByCode } from '@/lib/queries';
 
-export default function JoinRaffle() {
-  const [code, setCode] = useState('');
+function JoinForm() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const urlCode = searchParams.get('code') || '';
+  const [code, setCode] = useState(urlCode);
   const [viewerName, setViewerName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const router = useRouter();
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -81,9 +83,10 @@ export default function JoinRaffle() {
                 value={code}
                 onChange={(event) => setCode(event.target.value.toUpperCase())}
                 placeholder="Ej: 8A3F2B1C"
-                className="mt-2 w-full rounded-[1.6rem] border border-pink-100 bg-[#fff9fc] px-5 py-4 text-center text-2xl font-bold tracking-[0.32em] text-slate-900 outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100"
+                className={`mt-2 w-full rounded-[1.6rem] border border-pink-100 px-5 py-4 text-center text-2xl font-bold tracking-[0.32em] outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100 ${urlCode ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-[#fff9fc] text-slate-900'}`}
                 maxLength={8}
                 required
+                readOnly={!!urlCode}
               />
             </label>
 
@@ -113,5 +116,13 @@ export default function JoinRaffle() {
         </Card>
       </motion.div>
     </div>
+  );
+}
+
+export default function JoinRaffle() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-[#fff7fb]"><div className="h-20 w-20 animate-spin rounded-full border-4 border-pink-100 border-t-[#ec2aa4]" /></div>}>
+      <JoinForm />
+    </Suspense>
   );
 }

@@ -55,7 +55,6 @@ function RaffleMain() {
   const [displayedWinner, setDisplayedWinner] = useState<RaffleParticipant | null>(null);
   const [hideWinnerOverlay, setHideWinnerOverlay] = useState(false);
   const [currentAnimatedNameIndex, setCurrentAnimatedNameIndex] = useState(0);
-  const [animationStyle, setAnimationStyle] = useState<'cards' | 'number'>('cards');
   const [rouletteParticipant, setRouletteParticipant] = useState<RaffleParticipant | null>(null);
   const [previewParticipant, setPreviewParticipant] = useState<RaffleParticipant | null>(null);
   const [animationDuration, setAnimationDuration] = useState(7);
@@ -574,6 +573,13 @@ function RaffleMain() {
     }
   };
 
+  const handleCopyLink = async () => {
+    if (!raffle) return;
+    const link = `${window.location.origin}/join?code=${raffle.raffleCode}`;
+    await navigator.clipboard.writeText(link);
+    alert("¡Enlace copiado al portapapeles! Listo para enviar por WhatsApp.");
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#fff7fb]">
@@ -625,7 +631,7 @@ function RaffleMain() {
           <motion.div
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className={`relative flex w-full max-w-2xl flex-col items-center justify-center rounded-[3rem] border ${isFirstPlace && !preDrawCountdown ? 'border-yellow-400/50 shadow-[0_0_100px_-20px_rgba(250,204,21,0.5)]' : 'border-slate-300/50 shadow-[0_0_100px_-20px_rgba(148,163,184,0.2)] filter grayscale-[60%]'} ${animationStyle === 'cards' && preDrawCountdown === null ? 'bg-transparent border-none shadow-none' : 'bg-white p-10'} text-center transition-all duration-700`}
+            className={`relative flex w-full max-w-2xl flex-col items-center justify-center rounded-[3rem] border ${isFirstPlace && !preDrawCountdown ? 'border-yellow-400/50 shadow-[0_0_100px_-20px_rgba(250,204,21,0.5)]' : 'border-slate-300/50 shadow-[0_0_100px_-20px_rgba(148,163,184,0.2)] filter grayscale-[60%]'} ${preDrawCountdown === null ? 'bg-transparent border-none shadow-none' : 'bg-white p-10'} text-center transition-all duration-700`}
           >
             {raffle?.isAdmin && (
               <button
@@ -666,8 +672,7 @@ function RaffleMain() {
                   {showWinnerAnimation ? `Sorteando ${placeText}...` : (isFirstPlace ? '¡Gran Ganador!' : `¡${placeText}!`)}
                 </p>
 
-                {animationStyle === 'cards' && (
-                  <div className="flex flex-col items-center mt-6">
+                <div className="flex flex-col items-center mt-6">
                 {showWinnerAnimation && (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
@@ -699,15 +704,6 @@ function RaffleMain() {
                   </div>
                 </div>
               </div>
-            )}
-            {animationStyle === 'number' && (
-              <>
-                <div className={`mt-6 leading-none font-black tracking-tighter ${showWinnerAnimation ? 'text-[8rem] text-slate-900' : `text-[10rem] ${isFirstPlace ? 'text-yellow-500' : 'text-slate-500'}`}`}>
-                  #{String(targetParticipant?.assignedNumber || 0).padStart(3, '0')}
-                </div>
-                <div className="mt-4 text-4xl font-bold text-slate-700">{targetParticipant?.displayName || '???'}</div>
-              </>
-            )}
 
                 {!showWinnerAnimation && raffle?.isAdmin && (
                   <Button onClick={() => { setHideWinnerOverlay(true); setDisplayedWinner(null); }} className="mt-10 px-10 py-4 text-lg rounded-full shadow-lg">
@@ -732,7 +728,10 @@ function RaffleMain() {
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[#ec2aa4]">Sorteo en vivo</p>
               <h1 className="mt-1 text-2xl sm:text-3xl font-bold text-slate-950 line-clamp-2">{raffle.title}</h1>
-              <p className="mt-1 text-sm text-slate-500">Codigo compartible: {raffle.raffleCode} • Premio: {raffle.prizeName || 'Sorpresa'}</p>
+              <div className="mt-1 text-sm text-slate-500 flex items-center gap-2 flex-wrap">
+                Codigo: {raffle.raffleCode} • Premio: {raffle.prizeName || 'Sorpresa'}
+                <button onClick={handleCopyLink} className="rounded-full bg-pink-50 px-3 py-1 text-xs font-bold text-pink-600 hover:bg-pink-100 transition shadow-sm border border-pink-100">Copiar Enlace Directo</button>
+              </div>
             </div>
           </div>
 
@@ -868,36 +867,10 @@ function RaffleMain() {
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#ec2aa4]">Visualizacion</p>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="text-base font-bold text-slate-900">¿Como deseas ver el sorteo?</h2>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-500 whitespace-nowrap">
-                      Tiempo que dura el sorteo:
-                      <input type="number" min="3" max="20" value={animationDuration} onChange={e => setAnimationDuration(Number(e.target.value))} className="w-16 rounded-lg border border-pink-100 bg-[#fff9fc] px-2 py-1 text-center outline-none focus:border-pink-300" />
-                    </label>
-                    <div className="flex flex-wrap gap-1 rounded-full border border-pink-100 bg-pink-50/50 p-1 self-start sm:self-auto">
-                    {[
-                      { id: 'cards', label: 'Tarjetas', icon: '📇' },
-                      { id: 'number', label: 'Solo Numero', icon: '🔢' }
-                    ].map((mode) => (
-                      <button
-                        key={mode.id}
-                        onClick={() => setAnimationStyle(mode.id as any)}
-                        className="relative flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold outline-none transition-colors"
-                      >
-                        {animationStyle === mode.id && (
-                          <motion.div
-                            layoutId="activeTabMode"
-                            className="absolute inset-0 rounded-full bg-[#ec2aa4] shadow-sm"
-                            transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                          />
-                        )}
-                        <span className={`relative z-10 flex items-center gap-2 ${animationStyle === mode.id ? 'text-white' : 'text-slate-500 hover:text-pink-600'}`}>
-                          <motion.span animate={animationStyle === mode.id ? { rotate: [0, -15, 15, 0], scale: [1, 1.3, 1] } : {}} transition={{ duration: 0.4 }}>{mode.icon}</motion.span>
-                          {mode.label}
-                        </span>
-                      </button>
-                    ))}
-                    </div>
-                  </div>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-500 whitespace-nowrap">
+                    Tiempo que dura el sorteo:
+                    <input type="number" min="3" max="20" value={animationDuration} onChange={e => setAnimationDuration(Number(e.target.value))} className="w-16 rounded-lg border border-pink-100 bg-[#fff9fc] px-2 py-1 text-center outline-none focus:border-pink-300" />
+                  </label>
                 </div>
                 
                 <div className="mt-5 flex h-36 w-full items-center justify-center rounded-2xl bg-slate-950 overflow-hidden relative shadow-inner">

@@ -104,6 +104,13 @@ export default function Dashboard() {
     window.setTimeout(() => setCopyFeedback(''), 2200);
   };
 
+  const handleCopyLink = async (raffleCode: string) => {
+    const link = `${window.location.origin}/join?code=${raffleCode}`;
+    await navigator.clipboard.writeText(link);
+    setCopyFeedback(`Enlace directo copiado`);
+    window.setTimeout(() => setCopyFeedback(''), 2200);
+  };
+
   const handleCreateRaffle = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -370,6 +377,12 @@ export default function Dashboard() {
                           >
                             Copiar
                           </button>
+                          <button
+                            onClick={() => handleCopyLink(raffle.raffleCode)}
+                            className="rounded-full border border-pink-100 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-pink-50"
+                          >
+                            Enlace
+                          </button>
                         </div>
                       </div>
 
@@ -393,10 +406,10 @@ export default function Dashboard() {
                         Agregar participantes
                       </Button>
                       <button
-                        onClick={() => handleCopyCode(raffle.raffleCode)}
+                        onClick={() => handleCopyLink(raffle.raffleCode)}
                         className="rounded-full border border-pink-100 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-pink-50"
                       >
-                        Compartir codigo
+                        Copiar enlace
                       </button>
                       <button
                         onClick={() => handleDeleteRaffle(raffle.id)}
