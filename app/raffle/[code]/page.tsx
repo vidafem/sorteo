@@ -55,7 +55,6 @@ function RaffleMain() {
   const [displayedWinner, setDisplayedWinner] = useState<RaffleParticipant | null>(null);
   const [hideWinnerOverlay, setHideWinnerOverlay] = useState(false);
   const [currentAnimatedNameIndex, setCurrentAnimatedNameIndex] = useState(0);
-  const [animationStyle, setAnimationStyle] = useState<'cards' | 'number'>('cards');
   const [rouletteParticipant, setRouletteParticipant] = useState<RaffleParticipant | null>(null);
   const [previewParticipant, setPreviewParticipant] = useState<RaffleParticipant | null>(null);
   const [animationDuration, setAnimationDuration] = useState(7);
@@ -197,37 +196,42 @@ function RaffleMain() {
   useEffect(() => {
     if (!raffle?.id || !supabase) return;
 
-    const channel = supabase.channel(`raffle_${raffle.id}`, {
+    const channel = supabase.channel(`raffle_live_${raffle.id}`, {
       config: { broadcast: { ack: true } }
     })
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'raffle_participants', filter: `raffle_id=eq.${raffle.id}` },
-        () => { void loadRaffle(); }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'raffles', filter: `id=eq.${raffle.id}` },
-        () => { void loadRaffle(); }
-      )
-      .subscribe();
+    
+    channel
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'raffle_participants', filter: `raffle_id=eq.${raffle.id}` }, () => { void loadRaffle(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'raffles', filter: `id=eq.${raffle.id}` }, () => { void loadRaffle(); })
+      .on('broadcast', { event: 'start_spin' }, (payload) => {
+        const data = payload.payload;
+        setDrawingPlace(data.place);
+        setAnimatingWinner(data.winner);
+        setPreDrawCountdown(3);
+        setHideWinnerOverlay(false);
+        setShowWinnerAnimation(false);
+        if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current);
+      })
+      .on('broadcast', { event: 'time_updated' }, (payload) => {
+        const data = payload.payload;
+        setRaffle(prev => prev ? { ...prev, drawAt: data.drawAt } : null);
+      })
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        const activeViewers = Object.values(state).flatMap((clients: any[]) => clients.map((c) => c.viewerName));
+        setViewers([...new Set(activeViewers)].filter(Boolean));
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED' && viewerName) {
+          await channel.track({ viewerName });
+        }
+      });
 
-    const presenceChannel = supabase.channel(`presence_${raffle.id}`);
-    presenceChannel.on('presence', { event: 'sync' }, () => {
-      const state = presenceChannel.presenceState();
-      const activeViewers = Object.values(state).flatMap((clients: any[]) => clients.map((c) => c.viewerName));
-      setViewers([...new Set(activeViewers)].filter(Boolean));
-    });
-
-    presenceChannel.subscribe(async (status) => {
-      if (status === 'SUBSCRIBED' && viewerName) {
-        await presenceChannel.track({ viewerName });
-      }
-    });
+    channelRef.current = channel;
 
     return () => {
+      channelRef.current = null;
       void supabase?.removeChannel(channel);
-      void supabase?.removeChannel(presenceChannel);
     };
   }, [raffle?.id, loadRaffle, viewerName]);
 
@@ -274,7 +278,7 @@ function RaffleMain() {
       animationTimeoutRef.current = window.setTimeout(() => {
         setShowWinnerAnimation(false);
         setDisplayedWinner(animatingWinner);
-        setAnimatedWinnerIds(prev => new Set(prev).add(animatingWinner!.id));
+        setAnimatedWinnerIds(prev => new Set(prev).add(animatingWinner?.id || ''));
           
         if (drawingPlace === 1) {
           playWinSound();
@@ -673,46 +677,38 @@ function RaffleMain() {
                   {showWinnerAnimation ? `Sorteando ${placeText}...` : (isFirstPlace ? '¡Gran Ganador!' : `¡${placeText}!`)}
                 </p>
 
-                <div className="flex flex-col items-center mt-6">
-                  {showWinnerAnimation && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-                      className="mb-6 flex items-center gap-2 rounded-full bg-black/20 px-5 py-2 text-xs font-bold uppercase tracking-[0.25em] text-white shadow-black drop-shadow-md"
-                    >
-                      <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-pink-400 opacity-75"></span><span className="relative inline-flex h-2 w-2 rounded-full bg-pink-500"></span></span>
-                      Nombres Giratorios
-                    </motion.div>
-                  )}
-                  <div className="relative flex h-[24rem] w-[22rem] flex-col items-center justify-center overflow-hidden rounded-[2.5rem] bg-white p-2 shadow-[0_20px_60px_-15px_rgba(236,42,164,0.4)]">
-                    <div className="pointer-events-none absolute left-0 top-0 z-10 h-24 w-full bg-gradient-to-b from-white via-white/80 to-transparent"></div>
-                    <div className="pointer-events-none absolute bottom-0 left-0 z-10 h-24 w-full bg-gradient-to-t from-white via-white/80 to-transparent"></div>
+              <div className="flex flex-col items-center mt-6">
+                {showWinnerAnimation && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+                    className="mb-6 flex items-center gap-2 rounded-full bg-black/20 px-5 py-2 text-xs font-bold uppercase tracking-[0.25em] text-white shadow-black drop-shadow-md"
+                  >
+                    <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-pink-400 opacity-75"></span><span className="relative inline-flex h-2 w-2 rounded-full bg-pink-500"></span></span>
+                    Nombres Giratorios
+                  </motion.div>
+                )}
+                <div className="relative flex h-[24rem] w-[22rem] flex-col items-center justify-center overflow-hidden rounded-[2.5rem] bg-white p-2 shadow-[0_20px_60px_-15px_rgba(236,42,164,0.4)]">
+                  <div className="pointer-events-none absolute left-0 top-0 z-10 h-24 w-full bg-gradient-to-b from-white via-white/80 to-transparent"></div>
+                  <div className="pointer-events-none absolute bottom-0 left-0 z-10 h-24 w-full bg-gradient-to-t from-white via-white/80 to-transparent"></div>
 
-                    <div className="flex w-full flex-col items-center gap-3">
-                      {[-2, -1, 0, 1, 2].map((offset) => {
-                        const p = getParticipantOffset(offset, targetParticipant);
-                        const isCenter = offset === 0;
-                        return (
-                          <div key={offset} className={`flex w-11/12 items-center justify-center px-4 transition-all duration-[80ms] ease-linear ${isCenter ? 'z-20 scale-110 rounded-[1.2rem] bg-[#782381] py-5 text-white shadow-xl' : 'scale-95 py-2 text-slate-400 opacity-40'}`}>
-                            {isCenter && (
-                              <div className="mr-4 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/20 text-lg font-bold shadow-inner">
-                                {p?.displayName?.charAt(0).toUpperCase() || '?'}
-                              </div>
-                            )}
-                            <span className={`truncate font-bold ${isCenter ? 'text-3xl' : 'text-xl'}`}>#{String(p?.assignedNumber || 0).padStart(3, '0')} - {p?.displayName || '...'}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                  <div className="flex w-full flex-col items-center gap-3">
+                    {[-2, -1, 0, 1, 2].map((offset) => {
+                      const p = getParticipantOffset(offset, targetParticipant);
+                      const isCenter = offset === 0;
+                      return (
+                        <div key={offset} className={`flex w-11/12 items-center justify-center px-4 transition-all duration-[80ms] ease-linear ${isCenter ? 'z-20 scale-110 rounded-[1.2rem] bg-[#782381] py-5 text-white shadow-xl' : 'scale-95 py-2 text-slate-400 opacity-40'}`}>
+                          {isCenter && (
+                            <div className="mr-4 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/20 text-lg font-bold shadow-inner">
+                              {p?.displayName?.charAt(0).toUpperCase() || '?'}
+                            </div>
+                          )}
+                          <span className={`truncate font-bold ${isCenter ? 'text-3xl' : 'text-xl'}`}>#{String(p?.assignedNumber || 0).padStart(3, '0')} - {p?.displayName || '...'}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-            {animationStyle === 'number' && (
-              <>
-                <div className={`mt-6 leading-none font-black tracking-tighter ${showWinnerAnimation ? 'text-[8rem] text-slate-900' : `text-[10rem] ${isFirstPlace ? 'text-yellow-500' : 'text-slate-500'}`}`}>
-                  #{String(targetParticipant?.assignedNumber || 0).padStart(3, '0')}
-                </div>
-                <div className="mt-4 text-4xl font-bold text-slate-700">{targetParticipant?.displayName || '???'}</div>
-              </>
-            )}
+              </div>
 
                 {!showWinnerAnimation && raffle?.isAdmin && (
                   <Button onClick={() => { setHideWinnerOverlay(true); setDisplayedWinner(null); }} className="mt-10 px-10 py-4 text-lg rounded-full shadow-lg">
@@ -992,6 +988,15 @@ function RaffleMain() {
                           <span className={`rounded-full px-2 py-1 text-xs font-bold ${participant.place === 4 ? 'bg-purple-100 text-purple-700' : 'bg-yellow-100 text-yellow-700'}`}>
                             {participant.place === 4 ? 'Premio Consuelo' : `${participant.place}º`}
                           </span>
+                        )}
+                        {canEliminate && participant.status === 'active' && (
+                          <button
+                            onClick={() => handleEliminateParticipant(participant.id)}
+                            disabled={actionLoadingId === participant.id}
+                            className="rounded-full bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-100 disabled:opacity-60"
+                          >
+                            {actionLoadingId === participant.id ? '...' : 'Eliminar'}
+                          </button>
                         )}
                         </div>
                     </motion.div>
