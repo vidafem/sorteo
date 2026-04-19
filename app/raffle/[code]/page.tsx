@@ -240,38 +240,50 @@ function RaffleMain() {
   const [drawingPlace, setDrawingPlace] = useState<number>(1);
   const [animatingWinner, setAnimatingWinner] = useState<RaffleParticipant | null>(null);
   const [animatedWinnerIds, setAnimatedWinnerIds] = useState<Set<string>>(new Set());
+  const [preDrawCountdown, setPreDrawCountdown] = useState<number | null>(null);
 
   useEffect(() => {
     const unAnimatedWinner = actualWinners.find(w => !animatedWinnerIds.has(w.id));
-    if (unAnimatedWinner && !showWinnerAnimation && !displayedWinner && !animationTimeoutRef.current) {
+    if (unAnimatedWinner && !showWinnerAnimation && !displayedWinner && !animationTimeoutRef.current && preDrawCountdown === null) {
       setDrawingPlace(unAnimatedWinner.place || 1);
       setAnimatingWinner(unAnimatedWinner);
-      setShowWinnerAnimation(true);
       setHideWinnerOverlay(false);
-      
-      animationTimeoutRef.current = window.setTimeout(() => {
-        setShowWinnerAnimation(false);
-        setDisplayedWinner(unAnimatedWinner);
-        setAnimatedWinnerIds(prev => new Set(prev).add(unAnimatedWinner.id));
-          
-          if (unAnimatedWinner.place === 1) {
-            playWinSound();
-          }
-
-          // Cierre automatico para todos los espectadores despues de 6 segundos
-          animationTimeoutRef.current = window.setTimeout(() => {
-            setHideWinnerOverlay(true);
-            setDisplayedWinner(null);
-            animationTimeoutRef.current = null;
-          }, 6000);
-      }, animationDuration * 1000);
+      setPreDrawCountdown(3); // Inicia el contador sincronizado de 3 segundos
     } else if (actualWinners.length === 0) {
       setDisplayedWinner(null);
       setShowWinnerAnimation(false);
       setHideWinnerOverlay(false);
       setAnimatedWinnerIds(new Set());
+      setPreDrawCountdown(null);
     }
-  }, [actualWinners, displayedWinner, showWinnerAnimation, animatedWinnerIds, playWinSound, animationDuration]);
+  }, [actualWinners, displayedWinner, showWinnerAnimation, animatedWinnerIds, preDrawCountdown]);
+
+  useEffect(() => {
+    if (preDrawCountdown !== null && preDrawCountdown > 0) {
+      const timer = setTimeout(() => setPreDrawCountdown(preDrawCountdown - 1), 1000);
+      return () => clearTimeout(timer);
+    } else if (preDrawCountdown === 0 && animatingWinner) {
+      setPreDrawCountdown(null);
+      setShowWinnerAnimation(true);
+      
+      animationTimeoutRef.current = window.setTimeout(() => {
+        setShowWinnerAnimation(false);
+        setDisplayedWinner(animatingWinner);
+        setAnimatedWinnerIds(prev => new Set(prev).add(animatingWinner.id));
+          
+        if (animatingWinner.place === 1) {
+          playWinSound();
+        }
+
+        // Cierre automatico para todos los espectadores despues de 6 segundos
+        animationTimeoutRef.current = window.setTimeout(() => {
+          setHideWinnerOverlay(true);
+          setDisplayedWinner(null);
+          animationTimeoutRef.current = null;
+        }, 6000);
+      }, animationDuration * 1000);
+    }
+  }, [preDrawCountdown, animatingWinner, animationDuration, playWinSound]);
 
   useEffect(() => {
     return () => {
@@ -388,19 +400,6 @@ function RaffleMain() {
   const canPickWinner = Boolean(raffle?.isStaff);
   const canSetSecret = Boolean(raffle?.isAdmin);
   const canEliminate = Boolean(raffle?.staffAccess?.canManageRaffle || raffle?.staffAccess?.canEliminateParticipants);
-
-  const handleManualSelectWinner = async (participantId: string) => {
-    if (!raffle) return;
-    
-    const placeStr = prompt("(Oculto Admin) Ingresa el lugar que ganará este participante (1, 2 o 3):\nDeja en blanco para cancelar.");
-    if (!placeStr) return;
-    const place = parseInt(placeStr, 10);
-    if (![1,2,3].includes(place)) return alert("Lugar invalido. Debe ser 1, 2 o 3.");
-    
-    const newSecrets = { ...secretWinners, [place]: participantId };
-    setSecretWinners(newSecrets);
-    localStorage.setItem(`secret_winners_${raffle.id}`, JSON.stringify(newSecrets));
-  };
 
   const handleDraw = async (place: number) => {
     if (!raffle) return;
@@ -563,7 +562,7 @@ function RaffleMain() {
           <motion.div
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className={`relative flex w-full max-w-2xl flex-col items-center justify-center rounded-[3rem] border ${isFirstPlace ? 'border-yellow-400/50 shadow-[0_0_100px_-20px_rgba(250,204,21,0.5)]' : 'border-slate-300/50 shadow-[0_0_100px_-20px_rgba(148,163,184,0.2)] filter grayscale-[40%]'} ${animationStyle === 'cards' ? 'bg-transparent border-none shadow-none' : 'bg-white p-10'} text-center transition-all duration-700`}
+            className={`relative flex w-full max-w-2xl flex-col items-center justify-center rounded-[3rem] border ${isFirstPlace && !preDrawCountdown ? 'border-yellow-400/50 shadow-[0_0_100px_-20px_rgba(250,204,21,0.5)]' : 'border-slate-300/50 shadow-[0_0_100px_-20px_rgba(148,163,184,0.2)] filter grayscale-[40%]'} ${animationStyle === 'cards' && preDrawCountdown === null ? 'bg-transparent border-none shadow-none' : 'bg-white p-10'} text-center transition-all duration-700`}
           >
             {raffle?.isAdmin && (
               <button
@@ -571,6 +570,7 @@ function RaffleMain() {
                   setHideWinnerOverlay(true);
                   setDisplayedWinner(null);
                   setShowWinnerAnimation(false);
+                  setPreDrawCountdown(null);
                   if (animationTimeoutRef.current) {
                     clearTimeout(animationTimeoutRef.current);
                     animationTimeoutRef.current = null;
@@ -582,12 +582,29 @@ function RaffleMain() {
               </button>
             )}
 
-            <p className={`text-xl font-bold uppercase tracking-[0.3em] animate-pulse ${isFirstPlace ? 'text-yellow-500' : 'text-slate-400'}`}>
-              {showWinnerAnimation ? `Sorteando ${placeText}...` : (isFirstPlace ? '¡Gran Ganador!' : `¡${placeText}!`)}
-            </p>
+            {preDrawCountdown !== null ? (
+              <div className="flex flex-col items-center justify-center py-10">
+                <p className="text-xl font-bold uppercase tracking-[0.3em] text-[#ec2aa4] mb-8 animate-pulse">
+                  Comenzando Sorteo del {placeText}
+                </p>
+                <motion.div
+                  key={preDrawCountdown}
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 1.5, opacity: 0 }}
+                  className="text-[8rem] font-black text-slate-900 leading-none tabular-nums"
+                >
+                  {preDrawCountdown}
+                </motion.div>
+              </div>
+            ) : (
+              <>
+                <p className={`text-xl font-bold uppercase tracking-[0.3em] animate-pulse ${isFirstPlace ? 'text-yellow-500' : 'text-slate-400'}`}>
+                  {showWinnerAnimation ? `Sorteando ${placeText}...` : (isFirstPlace ? '¡Gran Ganador!' : `¡${placeText}!`)}
+                </p>
 
-            {animationStyle === 'cards' && (
-              <div className="flex flex-col items-center mt-6">
+                {animationStyle === 'cards' && (
+                  <div className="flex flex-col items-center mt-6">
                 {showWinnerAnimation && (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
