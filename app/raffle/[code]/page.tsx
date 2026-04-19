@@ -487,7 +487,7 @@ function RaffleMain() {
   };
 
   const handleSetSecretWinner = (number: number) => {
-    if (!canSetSecret) return;
+    if (!canSetSecret || !raffle) return;
     const placeStr = prompt(`(Oculto Admin) Ingresa el lugar que ganará el número #${number} (1, 2 o 3):\nDeja en blanco para cancelar.`);
     if (!placeStr) return;
     const place = parseInt(placeStr, 10);
