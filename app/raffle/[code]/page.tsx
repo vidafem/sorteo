@@ -95,8 +95,11 @@ function RaffleMain() {
     // Evita repetir la animacion de ganadores pasados si recargas la pagina
     if (initialLoadRef.current && raffleData) {
       initialLoadRef.current = false;
-      const existingPlaces = raffleData.participants.filter(p => p.status === 'winner' && p.place).map(p => p.place as number);
-      setRevealedPlaces(new Set(existingPlaces));
+      const existing: Record<number, RaffleParticipant> = {};
+      raffleData.participants.forEach(p => {
+        if (p.status === 'winner' && p.place) existing[p.place] = p;
+      });
+      setRevealedWinners(existing);
     }
   }, [code]);
 
@@ -264,8 +267,11 @@ function RaffleMain() {
 
   const [drawingPlace, setDrawingPlace] = useState<number>(1);
   const [animatingWinner, setAnimatingWinner] = useState<RaffleParticipant | null>(null);
-  const [revealedPlaces, setRevealedPlaces] = useState<Set<number>>(new Set());
+  const [revealedWinners, setRevealedWinners] = useState<Record<number, RaffleParticipant>>({});
   const [preDrawCountdown, setPreDrawCountdown] = useState<number | null>(null);
+
+  const secretWinnersRef = useRef(secretWinners);
+  useEffect(() => { secretWinnersRef.current = secretWinners; }, [secretWinners]);
 
   useEffect(() => {
     if (preDrawCountdown !== null && preDrawCountdown > 0) {
@@ -274,28 +280,8 @@ function RaffleMain() {
     } else if (preDrawCountdown === 0) {
       setPreDrawCountdown(null);
       setShowWinnerAnimation(true);
-      
-      animationTimeoutRef.current = window.setTimeout(() => {
-        setShowWinnerAnimation(false);
-        setDisplayedWinner(animatingWinner);
-        setRevealedPlaces(prev => new Set(prev).add(drawingPlace));
-          
-        if (drawingPlace === 1) {
-          playWinSound();
-        } else {
-          playLoseSound();
-        }
-
-        // Cierre automatico para todos los espectadores despues de 6 segundos
-        animationTimeoutRef.current = window.setTimeout(() => {
-          setHideWinnerOverlay(true);
-          setDisplayedWinner(null);
-          setAnimatingWinner(null);
-          animationTimeoutRef.current = null;
-        }, 6000);
-      }, animationDuration * 1000);
     }
-  }, [preDrawCountdown, animatingWinner, animationDuration, playWinSound, playLoseSound, drawingPlace]);
+  }, [preDrawCountdown]);
 
   useEffect(() => {
     return () => {
@@ -332,10 +318,22 @@ function RaffleMain() {
 
       if (elapsed >= duration) {
         setRouletteParticipant(animatingWinner);
+        setShowWinnerAnimation(false);
+        setDisplayedWinner(animatingWinner);
+        setRevealedWinners(prev => ({ ...prev, [drawingPlace]: animatingWinner }));
+        
+        if (drawingPlace === 1) playWinSound();
+        else playLoseSound();
+
+        window.setTimeout(() => {
+          setHideWinnerOverlay(true);
+          setDisplayedWinner(null);
+          setAnimatingWinner(null);
+        }, 6000);
         return;
       }
       
-      const pool = activeParticipantsRef.current.filter((p) => p.id !== animatingWinner.id && !Object.values(secretWinners).includes(p.id));
+      const pool = activeParticipantsRef.current.filter((p) => p.id !== animatingWinner.id && !Object.values(secretWinnersRef.current).includes(p.id));
       const safePool = pool.length > 0 ? pool : activeParticipantsRef.current;
       const randomIndex = Math.floor(Math.random() * safePool.length);
       
@@ -352,7 +350,7 @@ function RaffleMain() {
     timeoutId = window.setTimeout(tick, 20);
 
     return () => window.clearTimeout(timeoutId);
-  }, [showWinnerAnimation, animatingWinner, playTick, animationDuration, secretWinners]);
+  }, [showWinnerAnimation, animatingWinner, playTick, animationDuration, drawingPlace, playWinSound, playLoseSound]);
 
   // Mini-animación de nombres para la Sala de Espera
   useEffect(() => {
@@ -620,9 +618,9 @@ function RaffleMain() {
   
   const isOverlayVisible = showWinnerAnimation || (displayedWinner && !hideWinnerOverlay) || preDrawCountdown !== null;
   
-  const safeWinner1 = revealedPlaces.has(1) ? actualWinners.find((w) => w.place === 1) : null;
-  const safeWinner2 = revealedPlaces.has(2) ? actualWinners.find((w) => w.place === 2) : null;
-  const safeWinner3 = revealedPlaces.has(3) ? actualWinners.find((w) => w.place === 3) : null;
+  const safeWinner1 = revealedWinners[1] || null;
+  const safeWinner2 = revealedWinners[2] || null;
+  const safeWinner3 = revealedWinners[3] || null;
 
   return (
     <div className="min-h-screen bg-[var(--page-bg)]">
@@ -735,7 +733,7 @@ function RaffleMain() {
               <h1 className="mt-1 text-2xl sm:text-3xl font-bold text-slate-950 line-clamp-2">{raffle.title}</h1>
               <div className="mt-1 text-sm text-slate-500 flex items-center gap-2 flex-wrap">
                 Codigo: {raffle.raffleCode} • Premio: {raffle.prizeName || 'Sorpresa'}
-                <button onClick={handleCopyLink} className="rounded-full bg-[#ec2aa4] px-4 py-2 text-xs font-bold text-white hover:bg-pink-600 transition shadow-md">Copiar Enlace Directo</button>
+                <button onClick={handleCopyLink} className="mt-2 sm:mt-0 rounded-full bg-gradient-to-r from-[#ec2aa4] to-rose-500 px-6 py-2.5 text-sm font-black text-white hover:scale-105 transition-all shadow-[0_8px_20px_-8px_rgba(236,42,164,0.8)]">🔗 Copiar Enlace Directo</button>
               </div>
             </div>
           </div>
@@ -980,18 +978,20 @@ function RaffleMain() {
             <Card className="rounded-[2rem] p-6 shadow-sm border border-pink-100">
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#ec2aa4]">Registro Manual</p>
               <h2 className="mt-2 text-2xl font-bold text-slate-950">Agregar participantes</h2>
-              <form onSubmit={handleAddParticipant} className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end w-full">
-                <label className="block text-sm font-medium text-slate-700 w-full sm:flex-1">
-                  Nombre del jugador
-                  <input type="text" value={addName} onChange={(e) => setAddName(e.target.value)} className="mt-2 w-full rounded-xl border border-pink-100 bg-[#fff9fc] px-4 py-3 outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100" placeholder="Ej: Maria Lopez" />
+              <form onSubmit={handleAddParticipant} className="mt-5 flex flex-col gap-5 w-full">
+                <label className="block text-sm font-bold text-slate-700 w-full">
+                  Nombre Completo del Jugador
+                  <input type="text" value={addName} onChange={(e) => setAddName(e.target.value)} className="mt-2 w-full rounded-2xl border-2 border-pink-100 bg-[#fff9fc] px-5 py-4 text-lg font-semibold outline-none transition focus:border-fuchsia-400 focus:bg-white" placeholder="Ej: Maria Lopez" />
                 </label>
-                <label className="block text-sm font-medium text-slate-700 w-full sm:w-48 shrink-0">
-                  Numeros (separados por coma)
-                  <input type="text" value={addNumbers} onChange={(e) => setAddNumbers(e.target.value)} className="mt-2 w-full rounded-xl border border-pink-100 bg-[#fff9fc] px-4 py-3 outline-none transition focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-100" placeholder="Ej: 5, 12" />
-                </label>
-                <Button type="submit" disabled={adding} className="mt-2 sm:mt-0 h-12 w-full sm:w-auto px-6 py-2 text-sm shrink-0">
-                  {adding ? 'Agregando...' : 'Agregar Participantes'}
-                </Button>
+                <div className="flex flex-col sm:flex-row sm:items-end gap-5 w-full">
+                  <label className="block text-sm font-bold text-slate-700 w-full sm:w-1/2">
+                    Numeros (separados por coma)
+                    <input type="text" value={addNumbers} onChange={(e) => setAddNumbers(e.target.value)} className="mt-2 w-full rounded-2xl border-2 border-pink-100 bg-[#fff9fc] px-5 py-4 text-lg font-semibold outline-none transition focus:border-fuchsia-400 focus:bg-white" placeholder="Ej: 5, 12" />
+                  </label>
+                  <Button type="submit" disabled={adding} className="h-[4.2rem] w-full sm:w-1/2 px-6 text-base font-bold shrink-0 shadow-lg">
+                    {adding ? 'Agregando...' : '➕ Agregar Participantes'}
+                  </Button>
+                </div>
               </form>
               {addError && (
                 <div className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
