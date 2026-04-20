@@ -60,6 +60,7 @@ function RaffleMain() {
   const [animationDuration, setAnimationDuration] = useState(7);
   const [secretWinners, setSecretWinners] = useState<Record<number, string>>({});
   const [viewers, setViewers] = useState<string[]>([]);
+  const [bgMusicActive, setBgMusicActive] = useState(false);
 
   // Estado para el formulario manual
   const [addName, setAddName] = useState('');
@@ -151,25 +152,68 @@ function RaffleMain() {
     } catch (e) { /* Silencioso si el navegador bloquea el audio */ }
   }, []);
   
-  // Generador de sonido triste para perdedores
+  // Generador de sonido triste para perdedores (Trombón triste)
   const playLoseSound = useCallback(() => {
     try {
       if (!audioCtxRef.current) return;
       const ctx = audioCtxRef.current;
       if (ctx.state === 'suspended') void ctx.resume();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(300, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 1.2);
-      gain.gain.setValueAtTime(0.2, ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.2);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 1.2);
+      const notes = [300, 280, 260, 240];
+      const times = [0, 0.3, 0.6, 0.9];
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + times[i]);
+        if (i === notes.length - 1) {
+          osc.frequency.linearRampToValueAtTime(freq - 50, ctx.currentTime + times[i] + 0.8);
+        }
+        gain.gain.setValueAtTime(0.1, ctx.currentTime + times[i]);
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + times[i] + (i === notes.length - 1 ? 0.8 : 0.3));
+        osc.start(ctx.currentTime + times[i]);
+        osc.stop(ctx.currentTime + times[i] + (i === notes.length - 1 ? 0.8 : 0.3));
+      });
     } catch (e) {}
   }, []);
+
+  // Melodia animada y tranquila de fondo para la espera
+  useEffect(() => {
+    if (!bgMusicActive) return;
+    let isPlaying = true;
+    let nextNoteTime = audioCtxRef.current?.currentTime || 0;
+    let currentNote = 0;
+    let timerID: number;
+    const notes = [
+      392.00, 493.88, 587.33, 783.99, 392.00, 493.88, 587.33, 783.99,
+      329.63, 440.00, 523.25, 659.25, 329.63, 440.00, 523.25, 659.25,
+      261.63, 329.63, 392.00, 523.25, 261.63, 329.63, 392.00, 523.25,
+      293.66, 370.00, 440.00, 587.33, 293.66, 370.00, 440.00, 587.33
+    ];
+    const scheduler = () => {
+      if (!isPlaying || !audioCtxRef.current) return;
+      while (nextNoteTime < audioCtxRef.current.currentTime + 0.1) {
+        const ctx = audioCtxRef.current;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.value = notes[currentNote];
+        gain.gain.setValueAtTime(0, nextNoteTime);
+        gain.gain.linearRampToValueAtTime(0.015, nextNoteTime + 0.05); // Volumen súper suave
+        gain.gain.exponentialRampToValueAtTime(0.001, nextNoteTime + 0.2);
+        osc.start(nextNoteTime);
+        osc.stop(nextNoteTime + 0.2);
+        nextNoteTime += 0.25;
+        currentNote = (currentNote + 1) % notes.length;
+      }
+      timerID = window.setTimeout(scheduler, 25);
+    };
+    timerID = window.setTimeout(scheduler, 25);
+    return () => { isPlaying = false; window.clearTimeout(timerID); };
+  }, [bgMusicActive]);
 
   // Generador de acorde de victoria
   const playWinSound = useCallback(() => {
@@ -630,6 +674,19 @@ function RaffleMain() {
           {displayedWinner && !showWinnerAnimation && isFirstPlace && (
             <Confetti width={width} height={height} recycle={false} numberOfPieces={600} gravity={0.15} />
           )}
+          {displayedWinner && !showWinnerAnimation && !isFirstPlace && (
+            <Confetti 
+              width={width} 
+              height={height} 
+              recycle={false} 
+              numberOfPieces={60} 
+              gravity={0.07} 
+              drawShape={ctx => {
+                ctx.font = '40px Arial';
+                ctx.fillText('😢', -20, 15);
+              }}
+            />
+          )}
           
           <motion.div
             initial={{ scale: 0.5, opacity: 0 }}
@@ -734,6 +791,15 @@ function RaffleMain() {
               <div className="mt-1 text-sm text-slate-500 flex items-center gap-2 flex-wrap">
                 Codigo: {raffle.raffleCode} • Premio: {raffle.prizeName || 'Sorpresa'}
                 <button onClick={handleCopyLink} className="mt-2 sm:mt-0 rounded-full bg-gradient-to-r from-[#ec2aa4] to-rose-500 px-6 py-2.5 text-sm font-black text-white hover:scale-105 transition-all shadow-[0_8px_20px_-8px_rgba(236,42,164,0.8)]">🔗 Copiar Enlace Directo</button>
+                <button onClick={() => {
+                  if (!audioCtxRef.current) {
+                    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+                    audioCtxRef.current = new AudioContextClass();
+                  }
+                  setBgMusicActive(!bgMusicActive);
+                }} className={`mt-2 sm:mt-0 rounded-full px-4 py-2.5 text-sm font-bold hover:scale-105 transition-all shadow-md border ${bgMusicActive ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                  {bgMusicActive ? '🎵 Música Activada' : '🔇 Activar Música'}
+                </button>
               </div>
             </div>
           </div>
